@@ -1,23 +1,18 @@
-import threadpool
 import os
 import times
+import asyncdispatch
 import kbdinput
+import vjoy
 
-proc main =
-  setAllKeysBlocked(true)
 
-  spawn runHook()
-
-  let pollDuration = initDuration(milliseconds = 1)
+proc main() {.async.} =
   while true:
-    let timeOfNextLoop = getTime() + pollDuration
-
     echo keyIsPressed(Key.A)
 
-    let now = getTime()
-    if timeOfNextLoop > now:
-      sleep (timeOfNextLoop - now).inMilliseconds.int
+    await sleepAsync(1)
 
-  sync()
+setAllKeysBlocked(true)
 
-main()
+asyncCheck runHook()
+
+waitFor main()
