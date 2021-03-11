@@ -4,30 +4,6 @@ import analogslider
 
 
 type
-  GCCButton* {.pure.} = enum
-    A,
-    B,
-    X,
-    Y,
-    Z,
-    L,
-    R,
-    Start,
-    DLeft,
-    DRight,
-    DUp,
-    DDown,
-
-  GCCAxis* {.pure.} = enum
-    X,
-    Y,
-    CX,
-    CY,
-
-  GCCSlider* {.pure.} = enum
-    L,
-    R,
-
   GCCState* = object
     xAxis*: AnalogAxis
     yAxis*: AnalogAxis

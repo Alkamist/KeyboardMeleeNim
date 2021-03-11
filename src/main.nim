@@ -8,7 +8,7 @@ import digitalmeleecontroller/digitalmeleecontroller
 
 var
   vJoyDevice = initVJoyDevice(1)
-  controller: DigitalMeleeController
+  controller = initDigitalMeleeController()
 
 proc main() {.async.} =
   while true:
@@ -29,7 +29,7 @@ proc main() {.async.} =
     controller.setActionState(Action.BUp, keyIsPressed(Key.Period))
     controller.setActionState(Action.BSide, keyIsPressed(Key.Backspace))
     controller.setActionState(Action.Z, keyIsPressed(Key.Equals))
-    controller.setActionState(Action.ShortHop, keyIsPressed(Key.LeftBracket))
+    controller.setActionState(Action.ShortHop, keyIsPressed(Key.LeftBracket) or keyIsPressed(Key.Minus))
     controller.setActionState(Action.FullHop, keyIsPressed(Key.BackSlash))
     controller.setActionState(Action.Shield, keyIsPressed(Key.RightBracket))
     controller.setActionState(Action.AirDodge, keyIsPressed(Key.Semicolon))
