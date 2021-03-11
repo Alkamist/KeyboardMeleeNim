@@ -1,5 +1,3 @@
-import os
-import times
 import asyncdispatch
 import kbdinput
 import vjoy
