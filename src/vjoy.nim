@@ -125,12 +125,3 @@ proc shutDownVJoy*() =
       relinquishVJD((i + 1).cuint)
 
   unloadLib(vJoyLib)
-
-
-var device = initVJoyDevice(1)
-
-device.setButton(1, false)
-device.setAxis(VJoyAxis.Y, 0.0)
-device.sendInputs()
-
-shutDownVJoy()
