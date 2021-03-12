@@ -6,6 +6,7 @@ import jumplogic
 import airdodgelogic
 import sticktilter
 import astick
+import bstick
 
 
 type
@@ -47,6 +48,8 @@ type
     tiltModifier*: StickTilter
     shieldTilter*: StickTilter
     aStick*: AStick
+    bStick*: BStick
+    previousDirectionIsRight: bool
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.jumpLogic = initJumpLogic()
@@ -54,6 +57,8 @@ proc initDigitalMeleeController*(): DigitalMeleeController =
   result.tiltModifier = initStickTilter(0.65)
   result.shieldTilter = initStickTilter(0.6625)
   result.aStick = initAStick()
+  result.bStick = initBStick()
+  result.previousDirectionIsRight = true
 
 proc updateActions(controller: var DigitalMeleeController) =
   for action in controller.actions.mitems:
@@ -86,6 +91,26 @@ proc handleAStick(controller: var DigitalMeleeController) =
 
   else:
     controller.state.aButton.isPressed = controller.actions[Action.A].isPressed
+
+proc handleBStick(controller: var DigitalMeleeController) =
+  if controller.state.xAxis.value > 0.0:
+    controller.previousDirectionIsRight = true
+
+  elif controller.state.xAxis.value < 0.0:
+    controller.previousDirectionIsRight = false
+
+  controller.bStick.update(controller.state.xAxis,
+                           controller.state.yAxis,
+                           controller.actions[Action.B].isPressed and not controller.actions[Action.Down].isPressed,
+                           controller.actions[Action.BSide].isPressed and not controller.previousDirectionIsRight,
+                           controller.actions[Action.BSide].isPressed and controller.previousDirectionIsRight,
+                           controller.actions[Action.B].isPressed and controller.actions[Action.Down].isPressed,
+                           controller.actions[Action.BUp].isPressed,
+                           controller.actions[Action.Shield].isPressed)
+
+  controller.state.bButton.isPressed = controller.bStick.outputState
+  controller.state.xAxis.value = controller.bStick.xAxisOutput
+  controller.state.yAxis.value = controller.bStick.yAxisOutput
 
 proc handleJumpLogic(controller: var DigitalMeleeController) =
   controller.jumpLogic.update(controller.actions[Action.ShortHop].isPressed,
@@ -120,11 +145,11 @@ proc update*(controller: var DigitalMeleeController) =
   controller.updateAxesFromDirections()
   controller.handleAStick()
   controller.handleTiltModifier()
+  controller.handleBStick()
   controller.handleShieldTilt()
   controller.handleJumpLogic()
   controller.handleAirDodgeLogic()
 
-  controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.xButton.isPressed = controller.jumpLogic.fullHopOutput
   controller.state.yButton.isPressed = controller.jumpLogic.shortHopOutput

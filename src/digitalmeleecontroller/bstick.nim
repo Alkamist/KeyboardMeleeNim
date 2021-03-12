@@ -3,7 +3,7 @@ import delayedbutton
 import analogaxis
 
 type
-  AStick* = object
+  BStick* = object
     outputState*: bool
     xAxisOutput*: float
     yAxisOutput*: float
@@ -18,17 +18,17 @@ type
     axisHoldDuration: float
     activationTime: float
 
-proc initAStick*(): AStick =
+proc initBStick*(): BStick =
   result.neutralButton = initDelayedButton(0.0, 0.034)
-  result.leftButton = initDelayedButton(0.0, 0.05)
-  result.rightButton = initDelayedButton(0.0, 0.05)
+  result.leftButton = initDelayedButton(0.0, 0.034)
+  result.rightButton = initDelayedButton(0.0, 0.034)
   result.downButton = initDelayedButton(0.0, 0.034)
-  result.upButton = initDelayedButton(0.0, 0.034)
+  result.upButton = initDelayedButton(0.0, 0.050)
   result.activationTime = cpuTime()
 
-proc update*(stick: var AStick;
+proc update*(stick: var BStick;
              xAxis, yAxis: AnalogAxis;
-             neutral, left, right, down, up: bool) =
+             neutral, left, right, down, up, shield: bool) =
   stick.xAxisOutput = xAxis.value
   stick.yAxisOutput = yAxis.value
 
@@ -45,24 +45,23 @@ proc update*(stick: var AStick;
   stick.downButton.setState(down)
   stick.upButton.setState(up)
 
-  let
-    turnAroundLeftTilt = stick.leftButton.justPressed and xAxis.value > 0.0
-    turnAroundRightTilt = stick.rightButton.justPressed and xAxis.value < 0.0
-
-  if turnAroundLeftTilt or turnAroundRightTilt:
+  if stick.upButton.justPressed:
     stick.activationTime = cpuTime()
-    stick.outputButton.delay = 0.034
-    stick.axisHoldDuration = 0.067
 
-  elif stick.leftButton.justPressed or stick.rightButton.justPressed:
-    stick.activationTime = cpuTime()
-    stick.outputButton.delay = 0.017
-    stick.axisHoldDuration = 0.067
+    if yAxis.value <= 0.6 or shield:
+      stick.outputButton.delay = 0.017
 
-  if stick.downButton.justPressed or stick.upButton.justPressed:
+    else:
+      stick.outputButton.delay = 0.0
+
+    stick.axisHoldDuration = 0.05
+
+  if stick.downButton.justPressed or
+     stick.leftButton.justPressed or
+     stick.rightButton.justPressed:
     stick.activationTime = cpuTime()
     stick.outputButton.delay = 0.0
-    stick.axisHoldDuration = 0.067
+    stick.axisHoldDuration = 0.05
 
   if stick.neutralButton.justPressed:
     stick.activationTime = cpuTime()
@@ -75,30 +74,22 @@ proc update*(stick: var AStick;
                               stick.downButton.isPressed or
                               stick.upButton.isPressed)
 
-  stick.outputXAxis.setValueFromStates(stick.leftButton.isPressed,
-                                       stick.rightButton.isPressed)
-
-  stick.outputYAxis.setValueFromStates(stick.downButton.isPressed,
-                                       stick.upButton.isPressed)
+  stick.outputXAxis.setValueFromStates(stick.leftButton.isPressed, stick.rightButton.isPressed)
+  stick.outputYAxis.setValueFromStates(stick.downButton.isPressed, stick.upButton.isPressed)
 
   if cpuTime() - stick.activationTime <= stick.axisHoldDuration:
-    let shouldBiasX = not (stick.leftButton.isPressed or
-                           stick.rightButton.isPressed or
-                           stick.neutralButton.isPressed)
+    let shouldBiasX = stick.downButton.isPressed or stick.upButton.isPressed or
+                      (xAxis.isActive and stick.neutralButton.isPressed)
     var xBias = 0.0
     if shouldBiasX:
-      xBias = 0.35 * xAxis.direction
+      xBias = 0.5 * xAxis.direction
 
     stick.xAxisOutput = stick.outputXAxis.value * 0.6 + xBias
 
-    let shouldBiasY = yAxis.isActive and not
-                      (stick.downButton.isPressed or
-                       stick.upButton.isPressed or
-                       stick.neutralButton.isPressed)
-    var yBias = 0.0
-    if shouldBiasY:
-      yBias = 0.5 * yAxis.direction
+    if stick.outputYAxis.value < 0.0:
+      stick.yAxisOutput = stick.outputYAxis.value * 0.6
 
-    stick.yAxisOutput = stick.outputYAxis.value * 0.6 + yBias;
+    else:
+      stick.yAxisOutput = stick.outputYAxis.value
 
   stick.outputState = stick.outputButton.isPressed
