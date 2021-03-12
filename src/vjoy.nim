@@ -54,10 +54,12 @@ template quitIfNil(message: string, input: untyped): untyped =
     echo message
     quit(QuitFailure)
 
-when fileExists("vJoyPath.txt"):
-  const vJoyPath = readFile("vJoyPath.txt")
+var vJoyPath: string
+
+if fileExists("vJoyPath.txt"):
+  vJoyPath = readFile("vJoyPath.txt")
 else:
-  const vJoyPath = "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll"
+  vJoyPath = "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll"
   writeFile("vJoyPath.txt", vJoyPath)
 
 let vJoyLib = loadLib(vJoyPath)

@@ -1,8 +1,59 @@
+import json
+import tables
+import strutils
 import asyncdispatch
+from os import fileExists
 import kbdinput
 import vjoy
 import digitalmeleecontroller/digitalmeleecontroller
 
+
+proc parseKeyBindsJson(inputBinds: JsonNode): OrderedTable[Action, seq[Key]] =
+  for action, bindList in inputBinds.pairs:
+    var parsedBindList: seq[Key]
+    for keyBind in bindList.items:
+      parsedBindList.add(parseEnum[Key](keyBind.getStr()))
+    result[parseEnum[Action](action)] = parsedBindList
+
+var keyBindsJson: JsonNode
+
+if fileExists("config.txt"):
+  keyBindsJson = parseJson(readFile("config.txt"))
+
+else:
+  keyBindsJson = %* {
+    $Action.Left: [Key.A],
+    $Action.Right: [Key.D],
+    $Action.Down: [Key.S],
+    $Action.Up: [Key.W],
+    $Action.CLeft: [Key.L],
+    $Action.CRight: [Key.Slash],
+    $Action.CDown: [Key.Apostrophe],
+    $Action.CUp: [Key.P],
+    $Action.Tilt: [Key.CapsLock],
+    $Action.XMod: [Key.LeftAlt],
+    $Action.YMod: [Key.Space],
+    $Action.Start: [Key.Key5],
+    $Action.A: [Key.RightWindows],
+    $Action.B: [Key.RightAlt],
+    $Action.BUp: [Key.Period],
+    $Action.BSide: [Key.Backspace],
+    $Action.Z: [Key.Equals],
+    $Action.ShortHop: [Key.LeftBracket, Key.Minus],
+    $Action.FullHop: [Key.BackSlash],
+    $Action.Shield: [Key.RightBracket],
+    $Action.AirDodge: [Key.Semicolon],
+    $Action.ChargeSmash: [Key.Space],
+    $Action.DLeft: [Key.V],
+    $Action.DRight: [Key.N],
+    $Action.DDown: [Key.B],
+    $Action.DUp: [Key.G],
+    $Action.ToggleLightShield: [Key.Space],
+    $Action.InvertXAxis: [Key.Enter]
+  }
+  writeFile("config.txt", pretty(keyBindsJson))
+
+let keyBinds = parseKeyBindsJson(keyBindsJson)
 
 var
   vJoyDevice = initVJoyDevice(1)
@@ -10,34 +61,11 @@ var
 
 proc main() {.async.} =
   while true:
-    controller.setActionState(Action.Left, keyIsPressed(Key.A))
-    controller.setActionState(Action.Right, keyIsPressed(Key.D))
-    controller.setActionState(Action.Down, keyIsPressed(Key.S))
-    controller.setActionState(Action.Up, keyIsPressed(Key.W))
-    controller.setActionState(Action.CLeft, keyIsPressed(Key.L))
-    controller.setActionState(Action.CRight, keyIsPressed(Key.Slash))
-    controller.setActionState(Action.CDown, keyIsPressed(Key.Apostrophe))
-    controller.setActionState(Action.CUp, keyIsPressed(Key.P))
-    controller.setActionState(Action.Tilt, keyIsPressed(Key.CapsLock))
-    controller.setActionState(Action.XMod, keyIsPressed(Key.LeftAlt))
-    controller.setActionState(Action.YMod, keyIsPressed(Key.Space))
-    controller.setActionState(Action.Start, keyIsPressed(Key.Key5))
-    controller.setActionState(Action.A, keyIsPressed(Key.RightWindows))
-    controller.setActionState(Action.B, keyIsPressed(Key.RightAlt))
-    controller.setActionState(Action.BUp, keyIsPressed(Key.Period))
-    controller.setActionState(Action.BSide, keyIsPressed(Key.Backspace))
-    controller.setActionState(Action.Z, keyIsPressed(Key.Equals))
-    controller.setActionState(Action.ShortHop, keyIsPressed(Key.LeftBracket) or keyIsPressed(Key.Minus))
-    controller.setActionState(Action.FullHop, keyIsPressed(Key.BackSlash))
-    controller.setActionState(Action.Shield, keyIsPressed(Key.RightBracket))
-    controller.setActionState(Action.AirDodge, keyIsPressed(Key.Semicolon))
-    controller.setActionState(Action.ChargeSmash, keyIsPressed(Key.Space))
-    controller.setActionState(Action.DLeft, keyIsPressed(Key.V))
-    controller.setActionState(Action.DRight, keyIsPressed(Key.N))
-    controller.setActionState(Action.DDown, keyIsPressed(Key.B))
-    controller.setActionState(Action.DUp, keyIsPressed(Key.G))
-    controller.setActionState(Action.ToggleLightShield, keyIsPressed(Key.Space))
-    controller.setActionState(Action.InvertXAxis, keyIsPressed(Key.Enter))
+    for action, keyBindList in keyBinds.pairs:
+      var bindState = false
+      for keyBind in keyBindList:
+        bindState = bindState or keyIsPressed(keyBind)
+      controller.setActionState(action, bindState)
 
     controller.update()
 
@@ -63,7 +91,7 @@ proc main() {.async.} =
 
     await sleepAsync(1)
 
-setAllKeysBlocked(true)
+#setAllKeysBlocked(true)
 
 asyncCheck runHook()
 
