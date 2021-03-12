@@ -8,6 +8,7 @@ import sticktilter
 import astick
 import bstick
 import backdashoutofcrouchfix
+import safegroundeddownb
 
 
 type
@@ -42,20 +43,24 @@ type
     InvertXAxis,
 
   DigitalMeleeController* = object
+    useExtraBButtons*: bool
+    useShortHopMacro*: bool
+    useCStickTilting*: bool
+    xModX*: float
+    xModY*: float
+    yModX*: float
+    yModY*: float
     actions*: array[Action, Button]
     state*: GCCState
-    jumpLogic*: JumpLogic
-    airDodgeLogic*: AirDodgeLogic
-    tiltModifier*: StickTilter
-    shieldTilter*: StickTilter
-    aStick*: AStick
-    bStick*: BStick
-    backdashOutOfCrouchFix*: BackdashOutOfCrouchFix
+    jumpLogic: JumpLogic
+    airDodgeLogic: AirDodgeLogic
+    tiltModifier: StickTilter
+    shieldTilter: StickTilter
+    aStick: AStick
+    bStick: BStick
+    backdashOutOfCrouchFix: BackdashOutOfCrouchFix
+    safeGroundedDownB: SafeGroundedDownB
     previousDirectionIsRight: bool
-    xModX: float
-    xModY: float
-    yModX: float
-    yModY: float
     chargeSmash: bool
     isLightShielding: bool
 
@@ -67,11 +72,15 @@ proc initDigitalMeleeController*(): DigitalMeleeController =
   result.aStick = initAStick()
   result.bStick = initBStick()
   result.backdashOutOfCrouchFix = initBackdashOutOfCrouchFix()
+  result.safeGroundedDownB = initSafeGroundedDownB()
   result.previousDirectionIsRight = true
   result.xModX = 0.2875
   result.xModY = 0.95
   result.yModX = 0.95
   result.yModY = 0.2875
+  result.useExtraBButtons = true
+  result.useShortHopMacro = true
+  result.useCStickTilting = true
 
 proc updateActions(controller: var DigitalMeleeController) =
   for action in controller.actions.mitems:
@@ -140,7 +149,7 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
     controller.state.yAxis.value = controller.state.yAxis.direction * controller.xModY
 
 proc handleAStick(controller: var DigitalMeleeController) =
-  if not controller.actions[Action.Shield].isPressed:
+  if controller.useCStickTilting and not controller.actions[Action.Shield].isPressed:
     let aStickModifier = controller.actions[Action.Tilt].isPressed
     controller.aStick.update(controller.state.xAxis,
                              controller.state.yAxis,
@@ -162,28 +171,47 @@ proc handleAStick(controller: var DigitalMeleeController) =
     controller.state.aButton.isPressed = controller.actions[Action.A].isPressed
 
 proc handleBStick(controller: var DigitalMeleeController) =
-  if controller.state.xAxis.value > 0.0:
-    controller.previousDirectionIsRight = true
+  if controller.useExtraBButtons:
+    if controller.state.xAxis.value > 0.0:
+      controller.previousDirectionIsRight = true
 
-  elif controller.state.xAxis.value < 0.0:
-    controller.previousDirectionIsRight = false
+    elif controller.state.xAxis.value < 0.0:
+      controller.previousDirectionIsRight = false
 
-  controller.bStick.update(controller.state.xAxis,
-                           controller.state.yAxis,
-                           controller.actions[Action.B].isPressed and not controller.actions[Action.Down].isPressed,
-                           controller.actions[Action.BSide].isPressed and not controller.previousDirectionIsRight,
-                           controller.actions[Action.BSide].isPressed and controller.previousDirectionIsRight,
-                           controller.actions[Action.B].isPressed and controller.actions[Action.Down].isPressed,
-                           controller.actions[Action.BUp].isPressed,
-                           controller.actions[Action.Shield].isPressed)
+    controller.bStick.update(controller.state.xAxis,
+                             controller.state.yAxis,
+                             controller.actions[Action.B].isPressed and not controller.actions[Action.Down].isPressed,
+                             controller.actions[Action.BSide].isPressed and not controller.previousDirectionIsRight,
+                             controller.actions[Action.BSide].isPressed and controller.previousDirectionIsRight,
+                             controller.actions[Action.B].isPressed and controller.actions[Action.Down].isPressed,
+                             controller.actions[Action.BUp].isPressed,
+                             controller.actions[Action.Shield].isPressed)
 
-  controller.state.bButton.isPressed = controller.bStick.outputState
-  controller.state.xAxis.value = controller.bStick.xAxisOutput
-  controller.state.yAxis.value = controller.bStick.yAxisOutput
+    controller.state.bButton.isPressed = controller.bStick.outputState
+    controller.state.xAxis.value = controller.bStick.xAxisOutput
+    controller.state.yAxis.value = controller.bStick.yAxisOutput
+  else:
+    controller.safeGroundedDownB.update(controller.state.xAxis,
+                                        controller.state.yAxis,
+                                        controller.actions[Action.B].isPressed,
+                                        controller.actions[Action.Down].isPressed,
+                                        controller.actions[Action.Up].isPressed)
+
+    controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
+    controller.state.xAxis.value = controller.safeGroundedDownB.xAxisOutput
+    controller.state.yAxis.value = controller.safeGroundedDownB.yAxisOutput
 
 proc handleJumpLogic(controller: var DigitalMeleeController) =
-  controller.jumpLogic.update(controller.actions[Action.ShortHop].isPressed,
-                              controller.actions[Action.FullHop].isPressed)
+  if controller.useShortHopMacro:
+    controller.jumpLogic.update(controller.actions[Action.ShortHop].isPressed,
+                                controller.actions[Action.FullHop].isPressed)
+
+    controller.state.xButton.isPressed = controller.jumpLogic.fullHopOutput
+    controller.state.yButton.isPressed = controller.jumpLogic.shortHopOutput
+
+  else:
+    controller.state.xButton.isPressed = controller.actions[Action.FullHop].isPressed
+    controller.state.yButton.isPressed = controller.actions[Action.ShortHop].isPressed
 
 proc handleAirDodgeLogic(controller: var DigitalMeleeController) =
   controller.airDodgeLogic.update(controller.state.xAxis,
@@ -234,15 +262,13 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleTiltModifier()
   controller.handleBStick()
   controller.handleShieldTilt()
-  controller.handleChargedSmashes()
-  controller.handleJumpLogic()
   controller.handleAirDodgeLogic()
   controller.handleAngledSmashes()
+  controller.handleChargedSmashes()
+  controller.handleJumpLogic()
   controller.handleShield()
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
-  controller.state.xButton.isPressed = controller.jumpLogic.fullHopOutput
-  controller.state.yButton.isPressed = controller.jumpLogic.shortHopOutput
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed
   controller.state.startButton.isPressed = controller.actions[Action.Start].isPressed
   controller.state.dLeftButton.isPressed = controller.actions[Action.DLeft].isPressed
