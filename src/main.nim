@@ -82,9 +82,9 @@ configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.R: 7,
   $GCCButton.Start: 8,
   $GCCButton.DLeft: 9,
-  $GCCButton.DRight: 10,
-  $GCCButton.DDown: 11,
-  $GCCButton.DUp: 12,
+  $GCCButton.DRight: 11,
+  $GCCButton.DDown: 12,
+  $GCCButton.DUp: 10,
 })
 configJson.insertIfMissing("vJoyAxisBinds", {
   $GCCAxis.X: $VJoyAxis.X,
