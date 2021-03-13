@@ -1,5 +1,4 @@
 import dynlib
-from os import fileExists
 
 
 type
@@ -54,34 +53,34 @@ template quitIfNil(message: string, input: untyped): untyped =
     echo message
     quit(QuitFailure)
 
-var vJoyPath: string
+var
+  deviceIsAcquired = [false, false, false, false]
+  vJoyLib: LibHandle
+  vJoyEnabled: proc(): cint {.gcsafe, stdcall.}
+  acquireVJD: proc(deviceId: cuint): cint {.gcsafe, stdcall.}
+  relinquishVJD: proc(deviceId: cuint) {.gcsafe, stdcall.}
+  updateVJD: proc(deviceId: cuint, state: JoystickPositionV2): cint {.gcsafe, stdcall.}
 
-if fileExists("vJoyPath.txt"):
-  vJoyPath = readFile("vJoyPath.txt")
-else:
-  vJoyPath = "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll"
-  writeFile("vJoyPath.txt", vJoyPath)
-
-let vJoyLib = loadLib(vJoyPath)
-
-quitIfNil("Error loading vJoy.", vJoyLib)
-
-let
+proc startVJoy*(dllPath: string) =
+  vJoyLib = loadLib(dllPath)
   vJoyEnabled = cast[proc(): cint {.gcsafe, stdcall.}](vJoyLib.symAddr("vJoyEnabled"))
   acquireVJD = cast[proc(deviceId: cuint): cint {.gcsafe, stdcall.}](vJoyLib.symAddr("AcquireVJD"))
   relinquishVJD = cast[proc(deviceId: cuint) {.gcsafe, stdcall.}](vJoyLib.symAddr("RelinquishVJD"))
   updateVJD = cast[proc(deviceId: cuint, state: JoystickPositionV2): cint {.gcsafe, stdcall.}](vJoyLib.symAddr("UpdateVJD"))
+  quitIfNil("Error loading 'vJoyEnabled'.", vJoyEnabled)
+  quitIfNil("Error loading 'acquireVJD'.", acquireVJD)
+  quitIfNil("Error loading 'relinquishVJD'.", relinquishVJD)
+  quitIfNil("Error loading 'updateVJD'.", updateVJD)
+  if vJoyEnabled() == 0:
+    echo "vJoy is not enabled."
+    quit(QuitFailure)
 
-quitIfNil("Error loading 'vJoyEnabled'.", vJoyEnabled)
-quitIfNil("Error loading 'acquireVJD'.", acquireVJD)
-quitIfNil("Error loading 'relinquishVJD'.", relinquishVJD)
-quitIfNil("Error loading 'updateVJD'.", updateVJD)
+proc shutDownVJoy*() =
+  for i in 0..3:
+    if deviceIsAcquired[i]:
+      relinquishVJD((i + 1).cuint)
 
-if vJoyEnabled() == 0:
-  echo "vJoy is not enabled."
-  quit(QuitFailure)
-
-var deviceIsAcquired = [false, false, false, false]
+  unloadLib(vJoyLib)
 
 proc initVJoyDevice*(deviceId: cuint): VJoyDevice =
   if acquireVJD(deviceId) == 0:
@@ -120,10 +119,3 @@ proc sendInputs*(device: var VJoyDevice) =
   if updateVJD(device.id, device.state) == 0:
     echo "Failed to update vJoy device."
     quit(QuitFailure)
-
-proc shutDownVJoy*() =
-  for i in 0..3:
-    if deviceIsAcquired[i]:
-      relinquishVJD((i + 1).cuint)
-
-  unloadLib(vJoyLib)

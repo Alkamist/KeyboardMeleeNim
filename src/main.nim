@@ -8,56 +8,110 @@ import vjoy
 import digitalmeleecontroller/digitalmeleecontroller
 
 
-proc parseKeyBindsJson(inputBinds: JsonNode): OrderedTable[Action, seq[Key]] =
+proc parseKeyBindsJson(inputBinds: JsonNode): Table[Action, seq[Key]] =
   for action, bindList in inputBinds.pairs:
     var parsedBindList: seq[Key]
     for keyBind in bindList.items:
-      parsedBindList.add(parseEnum[Key](keyBind.getStr()))
+      parsedBindList.add(parseEnum[Key](keyBind.getStr))
     result[parseEnum[Action](action)] = parsedBindList
 
-var keyBindsJson: JsonNode
+proc parseVJoyButtonBindsJson(inputBinds: JsonNode): Table[GCCButton, clong] =
+  for button, bindId in inputBinds.pairs:
+    result[parseEnum[GCCButton](button)] = bindId.getInt.clong
 
-if fileExists("config.txt"):
-  keyBindsJson = parseJson(readFile("config.txt"))
+proc parseVJoyAxisBindsJson(inputBinds: JsonNode): Table[GCCAxis, VJoyAxis] =
+  for axis, bindId in inputBinds.pairs:
+    result[parseEnum[GCCAxis](axis)] = parseEnum[VJoyAxis](bindId.getStr)
 
-else:
-  keyBindsJson = %* {
-    $Action.Left: [Key.A],
-    $Action.Right: [Key.D],
-    $Action.Down: [Key.S],
-    $Action.Up: [Key.W],
-    $Action.CLeft: [Key.L],
-    $Action.CRight: [Key.Slash],
-    $Action.CDown: [Key.Apostrophe],
-    $Action.CUp: [Key.P],
-    $Action.Tilt: [Key.CapsLock],
-    $Action.XMod: [Key.LeftAlt],
-    $Action.YMod: [Key.Space],
-    $Action.Start: [Key.Key5],
-    $Action.A: [Key.RightWindows],
-    $Action.B: [Key.RightAlt],
-    $Action.BUp: [Key.Period],
-    $Action.BSide: [Key.Backspace],
-    $Action.Z: [Key.Equals],
-    $Action.ShortHop: [Key.LeftBracket, Key.Minus],
-    $Action.FullHop: [Key.BackSlash],
-    $Action.Shield: [Key.RightBracket],
-    $Action.AirDodge: [Key.Semicolon],
-    $Action.ChargeSmash: [Key.Space],
-    $Action.DLeft: [Key.V],
-    $Action.DRight: [Key.N],
-    $Action.DDown: [Key.B],
-    $Action.DUp: [Key.G],
-    $Action.ToggleLightShield: [Key.Space],
-    $Action.InvertXAxis: [Key.Enter]
-  }
-  writeFile("config.txt", pretty(keyBindsJson))
+proc parseVJoySliderBindsJson(inputBinds: JsonNode): Table[GCCSlider, VJoyAxis] =
+  for slider, bindId in inputBinds.pairs:
+    result[parseEnum[GCCSlider](slider)] = parseEnum[VJoyAxis](bindId.getStr)
 
-let keyBinds = parseKeyBindsJson(keyBindsJson)
+template insertIfMissing(node: var JsonNode, key: string, value: untyped): untyped =
+  if not node.hasKey(key):
+    node{key} = %* value
+
+var configJson = parseJson("{}")
+
+if fileExists("config.json"):
+  configJson = parseJson(readFile("config.json"))
+
+configJson.insertIfMissing("vJoyDeviceId", 1)
+configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
+configJson.insertIfMissing("useShortHopMacro", true)
+configJson.insertIfMissing("useCStickTilting", true)
+configJson.insertIfMissing("useExtraBButtons", true)
+configJson.insertIfMissing("keyBinds", {
+  $Action.Left: [Key.A],
+  $Action.Right: [Key.D],
+  $Action.Down: [Key.S],
+  $Action.Up: [Key.W],
+  $Action.CLeft: [Key.L],
+  $Action.CRight: [Key.Slash],
+  $Action.CDown: [Key.Apostrophe],
+  $Action.CUp: [Key.P],
+  $Action.Tilt: [Key.CapsLock],
+  $Action.XMod: [Key.LeftAlt],
+  $Action.YMod: [Key.Space],
+  $Action.Start: [Key.Key5],
+  $Action.A: [Key.RightWindows],
+  $Action.B: [Key.RightAlt],
+  $Action.BUp: [Key.Period],
+  $Action.BSide: [Key.Backspace],
+  $Action.Z: [Key.Equals],
+  $Action.ShortHop: [Key.LeftBracket, Key.Minus],
+  $Action.FullHop: [Key.BackSlash],
+  $Action.Shield: [Key.RightBracket],
+  $Action.AirDodge: [Key.Semicolon],
+  $Action.ChargeSmash: [Key.Space],
+  $Action.DLeft: [Key.V],
+  $Action.DRight: [Key.N],
+  $Action.DDown: [Key.B],
+  $Action.DUp: [Key.G],
+  $Action.ToggleLightShield: [Key.Space],
+  $Action.InvertXAxis: [Key.Enter],
+})
+configJson.insertIfMissing("vJoyButtonBinds", {
+  $GCCButton.A: 1,
+  $GCCButton.B: 2,
+  $GCCButton.X: 3,
+  $GCCButton.Y: 4,
+  $GCCButton.Z: 5,
+  $GCCButton.L: 6,
+  $GCCButton.R: 7,
+  $GCCButton.Start: 8,
+  $GCCButton.DLeft: 9,
+  $GCCButton.DRight: 10,
+  $GCCButton.DDown: 11,
+  $GCCButton.DUp: 12,
+})
+configJson.insertIfMissing("vJoyAxisBinds", {
+  $GCCAxis.X: $VJoyAxis.X,
+  $GCCAxis.Y: $VJoyAxis.Y,
+  $GCCAxis.CX: $VJoyAxis.XRotation,
+  $GCCAxis.CY: $VJoyAxis.YRotation,
+})
+configJson.insertIfMissing("vJoySliderBinds", {
+  $GCCSlider.L: $VJoyAxis.Slider0,
+})
+
+writeFile("config.json", pretty(configJson))
+
+startVJoy(configJson["vJoyDllPath"].getStr)
+
+let
+  keyBinds = parseKeyBindsJson(configJson["keyBinds"])
+  vJoyButtonBinds = parseVJoyButtonBindsJson(configJson["vJoyButtonBinds"])
+  vJoyAxisBinds = parseVJoyAxisBindsJson(configJson["vJoyAxisBinds"])
+  vJoySliderBinds = parseVJoySliderBindsJson(configJson["vJoySliderBinds"])
 
 var
-  vJoyDevice = initVJoyDevice(1)
+  vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
   controller = initDigitalMeleeController()
+
+controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
+controller.useCStickTilting = configJson["useCStickTilting"].getBool
+controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
 
 proc main() {.async.} =
   while true:
@@ -69,23 +123,14 @@ proc main() {.async.} =
 
     controller.update()
 
-    vJoyDevice.setButton(1, controller.state.aButton.isPressed)
-    vJoyDevice.setButton(2, controller.state.bButton.isPressed)
-    vJoyDevice.setButton(3, controller.state.xButton.isPressed)
-    vJoyDevice.setButton(4, controller.state.yButton.isPressed)
-    vJoyDevice.setButton(5, controller.state.zButton.isPressed)
-    vJoyDevice.setButton(6, controller.state.lButton.isPressed)
-    vJoyDevice.setButton(7, controller.state.rButton.isPressed)
-    vJoyDevice.setButton(8, controller.state.startButton.isPressed)
-    vJoyDevice.setButton(9, controller.state.dLeftButton.isPressed)
-    vJoyDevice.setButton(10, controller.state.dUpButton.isPressed)
-    vJoyDevice.setButton(11, controller.state.dRightButton.isPressed)
-    vJoyDevice.setButton(12, controller.state.dDownButton.isPressed)
-    vJoyDevice.setAxis(VJoyAxis.X, controller.state.xAxis.value)
-    vJoyDevice.setAxis(VJoyAxis.Y, controller.state.yAxis.value)
-    vJoyDevice.setAxis(VJoyAxis.XRotation, controller.state.cXAxis.value)
-    vJoyDevice.setAxis(VJoyAxis.YRotation, controller.state.cYAxis.value)
-    vJoyDevice.setAxis(VJoyAxis.Slider0, controller.state.lSlider.value)
+    for button, bindId in vJoyButtonBinds.pairs:
+      vJoyDevice.setButton(bindId, controller.state[button].isPressed)
+
+    for axis, bindId in vJoyAxisBinds.pairs:
+      vJoyDevice.setAxis(bindId, controller.state[axis].value)
+
+    for slider, bindId in vJoySliderBinds.pairs:
+      vJoyDevice.setAxis(bindId, controller.state[slider].value)
 
     vJoyDevice.sendInputs()
 

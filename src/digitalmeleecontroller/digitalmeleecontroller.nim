@@ -10,6 +10,8 @@ import bstick
 import backdashoutofcrouchfix
 import safegroundeddownb
 
+export gamecubecontrollerstate
+
 
 type
   Action* {.pure.} = enum
