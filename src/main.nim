@@ -41,6 +41,7 @@ configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInt
 configJson.insertIfMissing("useShortHopMacro", true)
 configJson.insertIfMissing("useCStickTilting", true)
 configJson.insertIfMissing("useExtraBButtons", true)
+configJson.insertIfMissing("onOffToggleKey", Key.Key8)
 configJson.insertIfMissing("keyBinds", {
   $Action.Left: [Key.A],
   $Action.Right: [Key.D],
@@ -100,12 +101,16 @@ writeFile("config.json", pretty(configJson))
 startVJoy(configJson["vJoyDllPath"].getStr)
 
 let
+  onOffToggleKey = parseEnum[Key](configJson["onOffToggleKey"].getStr)
   keyBinds = parseKeyBindsJson(configJson["keyBinds"])
   vJoyButtonBinds = parseVJoyButtonBindsJson(configJson["vJoyButtonBinds"])
   vJoyAxisBinds = parseVJoyAxisBindsJson(configJson["vJoyAxisBinds"])
   vJoySliderBinds = parseVJoySliderBindsJson(configJson["vJoySliderBinds"])
 
 var
+  isEnabled = true
+  onOffToggle = false
+  onOffTogglePrevious = false
   vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
   controller = initDigitalMeleeController()
 
@@ -115,28 +120,36 @@ controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
 
 proc main() {.async.} =
   while true:
-    for action, keyBindList in keyBinds.pairs:
-      var bindState = false
-      for keyBind in keyBindList:
-        bindState = bindState or keyIsPressed(keyBind)
-      controller.setActionState(action, bindState)
+    onOffToggle = keyIsPressed(onOffToggleKey)
+    if onOffToggle and not onOffTogglePrevious:
+      isEnabled = not isEnabled
+      setAllKeysBlocked(isEnabled)
 
-    controller.update()
+    if isEnabled:
+      for action, keyBindList in keyBinds.pairs:
+        var bindState = false
+        for keyBind in keyBindList:
+          bindState = bindState or keyIsPressed(keyBind)
+        controller.setActionState(action, bindState)
 
-    for button, bindId in vJoyButtonBinds.pairs:
-      vJoyDevice.setButton(bindId, controller.state[button].isPressed)
+      controller.update()
 
-    for axis, bindId in vJoyAxisBinds.pairs:
-      vJoyDevice.setAxis(bindId, controller.state[axis].value)
+      for button, bindId in vJoyButtonBinds.pairs:
+        vJoyDevice.setButton(bindId, controller.state[button].isPressed)
 
-    for slider, bindId in vJoySliderBinds.pairs:
-      vJoyDevice.setAxis(bindId, controller.state[slider].value)
+      for axis, bindId in vJoyAxisBinds.pairs:
+        vJoyDevice.setAxis(bindId, controller.state[axis].value)
 
-    vJoyDevice.sendInputs()
+      for slider, bindId in vJoySliderBinds.pairs:
+        vJoyDevice.setAxis(bindId, controller.state[slider].value)
+
+      vJoyDevice.sendInputs()
+
+    onOffTogglePrevious = onOffToggle
 
     await sleepAsync(1)
 
-#setAllKeysBlocked(true)
+setAllKeysBlocked(true)
 
 asyncCheck runHook()
 
