@@ -219,7 +219,7 @@ proc handleAirDodgeLogic(controller: var DigitalMeleeController) =
   controller.airDodgeLogic.update(controller.state.xAxis,
                                   controller.state.yAxis,
                                   controller.actions[Action.AirDodge].isPressed,
-                                  controller.actions[Action.Tilt].isPressed)
+                                  false)
 
 proc handleTiltModifier(controller: var DigitalMeleeController) =
   controller.tiltModifier.update(controller.state.xAxis,
