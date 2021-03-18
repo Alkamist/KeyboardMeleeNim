@@ -152,7 +152,6 @@ proc main() {.async.} =
 setAllKeysBlocked(true)
 
 asyncCheck runHook()
-
 waitFor main()
 
 shutDownVJoy()
