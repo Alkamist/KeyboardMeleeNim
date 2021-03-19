@@ -1,57 +1,87 @@
 import json
+import options
 import std/exitprocs
 import enet
 
 
-if enet_initialize() != 0:
-  echo "Could not initialize ENet."
-  quit(QuitFailure)
+let handshake = $ %* {"type": "connect_request", "cursor": 0}
 
-addExitProc(proc() = enet_deinitialize())
+type
+  SlippiStream* = object
+    isConnected*: bool
+    nickName*: string
+    version*: string
+    cursor*: int
+    host: ptr ENetHost
+    peer: ptr ENetPeer
+    address: ENetAddress
 
-var address: ENetAddress
-discard enet_address_set_host(address.addr, "127.0.0.1")
-address.port = 51441
+proc initSlippiStream*(address = "127.0.0.1",
+                       port = 51441): SlippiStream =
+  if enet_initialize() != 0:
+    echo "Could not initialize ENet."
+    quit(QuitFailure)
 
-let
-  host = enet_host_create(nil, 1, 0, 0, 0)
-  peer = enet_host_connect(host, address.addr, 1, 0)
+  addExitProc(proc() = enet_deinitialize())
 
-if peer == nil:
-  echo "Could not create peer."
-  quit(QuitFailure)
+  discard enet_address_set_host(result.address.addr, address)
+  result.address.port = port.cushort
+  result.host = enet_host_create(nil, 1, 0, 0, 0)
+  result.peer = enet_host_connect(result.host, result.address.addr, 1, 0)
 
-var event: ENetEvent
+  if result.peer == nil:
+    echo "Could not create peer."
+    quit(QuitFailure)
 
-if (enet_host_service(host, event.addr, 1000) > 0 and event.`type` == ENetEventType.Connect):
-  echo "Connected to Dolphin."
+proc `=destroy`(stream: var SlippiStream) =
+  enet_peer_disconnect(stream.peer, 0)
+  enet_host_destroy(stream.host)
 
-  let
-    handshake = $ %* {"type": "connect_request", "cursor": 0}
-    packet = enet_packet_create(handshake.cstring, (handshake.len + 1).csize_t, ENetPacketFlag.Reliable.cuint)
+proc connect*(stream: var SlippiStream) =
+  var event: ENetEvent
 
-  discard enet_peer_send(peer, 0.cuchar, packet)
-
-  while enet_host_service(host, event.addr, 1000) > 0:
-    case event.`type`:
-
-    of ENetEventType.None:
-      discard
-
-    of ENetEventType.Connect:
+  for _ in 0..<5:
+    if (enet_host_service(stream.host, event.addr, 5000) > 0 and event.`type` == ENetEventType.Connect):
       echo "Connected to Dolphin."
-      discard enet_peer_send(peer, 0.cuchar, packet)
+      let packet = enet_packet_create(handshake.cstring, (handshake.len + 1).csize_t, ENetPacketFlag.Reliable.cuint)
+      discard enet_peer_send(stream.peer, 0.cuchar, packet)
 
-    of ENetEventType.Disconnect:
-      echo "Peer disconnected."
+      discard enet_host_service(stream.host, event.addr, 5000)
 
-    of ENetEventType.Receive:
-      echo "Received Packet: " & $event.packet.data
-      enet_packet_destroy(event.packet)
+      if event.`type` == ENetEventType.Receive:
+        let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
+        enet_packet_destroy(event.packet)
 
-else:
+        stream.isConnected = true
+        stream.nickName = packetData["nick"].getStr
+        stream.version = packetData["version"].getStr
+        stream.cursor = packetData["cursor"].getInt
+
+      return
+
   echo "Connection with Dolphin failed."
-  enet_peer_reset(peer)
+  enet_peer_reset(stream.peer)
 
-enet_peer_disconnect(peer, 0)
-enet_host_destroy(host)
+proc poll*(stream: SlippiStream): Option[JsonNode] =
+  var event: ENetEvent
+
+  discard enet_host_service(stream.host, event.addr, 0)
+
+  if event.`type` == ENetEventType.Receive:
+    let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
+    enet_packet_destroy(event.packet)
+    return some(packetData)
+
+
+var stream = initSlippiStream()
+
+stream.connect()
+
+echo stream.nickName
+echo stream.version
+echo stream.cursor
+
+while true:
+  let message = stream.poll()
+  if message.isSome:
+    echo message.get
