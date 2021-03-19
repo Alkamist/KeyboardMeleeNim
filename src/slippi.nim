@@ -1,12 +1,28 @@
 import json
+import math
+import tables
 import options
 import std/exitprocs
+import base64
 import enet
+import binaryreading
 
 
 let handshake = $ %* {"type": "connect_request", "cursor": 0}
 
 type
+  CommandKind* {.pure.} = enum
+    Unknown = 0x10,
+    EventPayloads = 0x35,
+    GameStart = 0x36,
+    PreFrameUpdate = 0x37,
+    PostFrameUpdate = 0x38,
+    GameEnd = 0x39,
+    FrameStart = 0x3a,
+    ItemUpdate = 0x3b,
+    FrameBookend = 0x3c,
+    GeckoList = 0x3d,
+
   SlippiStream* = object
     isConnected*: bool
     nickName*: string
@@ -15,6 +31,8 @@ type
     host: ptr ENetHost
     peer: ptr ENetPeer
     address: ENetAddress
+    numberOfCommands: int
+    commandLengths: Table[CommandKind, int]
 
 proc initSlippiStream*(address = "127.0.0.1",
                        port = 51441): SlippiStream =
@@ -72,16 +90,34 @@ proc poll*(stream: SlippiStream): Option[JsonNode] =
     enet_packet_destroy(event.packet)
     return some(packetData)
 
+proc readEventPayloads(stream: var SlippiStream, payload: string) =
+  let payloadSize = readUint8(payload, 0x1)
+  stream.numberOfCommands = (payloadSize - 1).floorDiv(3).int
 
-var stream = initSlippiStream()
+  var location = 0x2
+  for _ in 0..<stream.numberOfCommands:
+    let commandKind = CommandKind(readUint8(payload, location))
+    stream.commandLengths[commandKind] = readUint16(payload, location + 0x1).int
+    location += 0x3
 
-stream.connect()
 
-echo stream.nickName
-echo stream.version
-echo stream.cursor
+var slippi = initSlippiStream()
+
+slippi.connect()
+
+echo slippi.nickName
+echo slippi.version
+echo slippi.cursor
 
 while true:
-  let message = stream.poll()
+  let message = slippi.poll()
   if message.isSome:
-    echo message.get
+    if message.get["type"].getStr == "game_event":
+      let
+        payloadStr = decode(message.get["payload"].getStr)
+        commandKind = CommandKind(readUint8(payloadStr, 0x0))
+
+      echo commandKind
+
+      #if commandKind == CommandKind.EventPayloads:
+      #  slippi.readEventPayloads(payloadStr)
