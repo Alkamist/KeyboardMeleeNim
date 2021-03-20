@@ -1,11 +1,11 @@
-import json
-import math
-import tables
-import options
+import std/json
+import std/math
+import std/tables
+import std/options
 import std/exitprocs
-import base64
+import std/base64
 import enet
-import binaryreading
+import binaryparsing
 
 
 let handshake = $ %* {"type": "connect_request", "cursor": 0}
@@ -90,34 +90,68 @@ proc poll*(stream: SlippiStream): Option[JsonNode] =
     enet_packet_destroy(event.packet)
     return some(packetData)
 
-proc readEventPayloads(stream: var SlippiStream, payload: string) =
-  let payloadSize = readUint8(payload, 0x1)
-  stream.numberOfCommands = (payloadSize - 1).floorDiv(3).int
+# proc readEventPayloads(stream: var SlippiStream, payload: string) =
+#   let payloadSize = readUint8(payload, 0x1)
+#   stream.numberOfCommands = (payloadSize - 1).floorDiv(3).int
 
-  var location = 0x2
-  for _ in 0..<stream.numberOfCommands:
-    let commandKind = CommandKind(readUint8(payload, location))
-    stream.commandLengths[commandKind] = readUint16(payload, location + 0x1).int
-    location += 0x3
+#   var location = 0x2
+#   for _ in 0..<stream.numberOfCommands:
+#     let commandKind = CommandKind(readUint8(payload, location))
+#     stream.commandLengths[commandKind] = readUint16(payload, location + 0x1).int
+#     location += 0x3
 
 
 var slippi = initSlippiStream()
 
 slippi.connect()
 
-echo slippi.nickName
-echo slippi.version
-echo slippi.cursor
-
 while true:
   let message = slippi.poll()
   if message.isSome:
     if message.get["type"].getStr == "game_event":
-      let
-        payloadStr = decode(message.get["payload"].getStr)
-        commandKind = CommandKind(readUint8(payloadStr, 0x0))
+      var payloadStr = decode(message.get["payload"].getStr)
 
-      echo commandKind
+      while payloadStr.len > 0:
+        let commandKind = CommandKind(readUint8(payloadStr, 0x0))
+        echo "Command Kind: " & $commandKind
 
-      #if commandKind == CommandKind.EventPayloads:
-      #  slippi.readEventPayloads(payloadStr)
+        case commandKind:
+
+        of CommandKind.Unknown:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.EventPayloads:
+          let payloadSize = readUint8(payloadStr, 0x1)
+          slippi.numberOfCommands = (payloadSize - 1).floorDiv(3).int
+
+          var location = 0x2
+          for _ in 0..<slippi.numberOfCommands:
+            let commandKind = CommandKind(readUint8(payloadStr, location))
+            slippi.commandLengths[commandKind] = readUint16(payloadStr, location + 0x1).int
+            location += 0x3
+
+          payloadStr = payloadStr[payloadSize + 1..<payloadStr.len]
+
+        of CommandKind.GameStart:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.PreFrameUpdate:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.PostFrameUpdate:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.GameEnd:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.FrameStart:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.ItemUpdate:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.FrameBookend:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+
+        of CommandKind.GeckoList:
+          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
