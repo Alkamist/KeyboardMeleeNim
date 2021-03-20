@@ -5,7 +5,8 @@ import std/options
 import std/exitprocs
 import std/base64
 import enet
-import binaryparsing
+import binaryreading
+import melee
 
 
 let handshake = $ %* {"type": "connect_request", "cursor": 0}
@@ -33,6 +34,10 @@ type
     address: ENetAddress
     numberOfCommands: int
     commandLengths: Table[CommandKind, int]
+    currentPayload: string
+    currentCommandKind: CommandKind
+    gameState: MeleeGameState
+
 
 proc initSlippiStream*(address = "127.0.0.1",
                        port = 51441): SlippiStream =
@@ -51,54 +56,75 @@ proc initSlippiStream*(address = "127.0.0.1",
     echo "Could not create peer."
     quit(QuitFailure)
 
-proc `=destroy`(stream: var SlippiStream) =
-  enet_peer_disconnect(stream.peer, 0)
-  enet_host_destroy(stream.host)
+proc `=destroy`(slippi: var SlippiStream) =
+  enet_peer_disconnect(slippi.peer, 0)
+  enet_host_destroy(slippi.host)
 
-proc connect*(stream: var SlippiStream) =
+proc connect*(slippi: var SlippiStream) =
   var event: ENetEvent
 
   for _ in 0..<5:
-    if (enet_host_service(stream.host, event.addr, 5000) > 0 and event.`type` == ENetEventType.Connect):
+    if (enet_host_service(slippi.host, event.addr, 5000) > 0 and event.`type` == ENetEventType.Connect):
       echo "Connected to Dolphin."
       let packet = enet_packet_create(handshake.cstring, (handshake.len + 1).csize_t, ENetPacketFlag.Reliable.cuint)
-      discard enet_peer_send(stream.peer, 0.cuchar, packet)
+      discard enet_peer_send(slippi.peer, 0.cuchar, packet)
 
-      discard enet_host_service(stream.host, event.addr, 5000)
+      discard enet_host_service(slippi.host, event.addr, 5000)
 
       if event.`type` == ENetEventType.Receive:
         let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
         enet_packet_destroy(event.packet)
 
-        stream.isConnected = true
-        stream.nickName = packetData["nick"].getStr
-        stream.version = packetData["version"].getStr
-        stream.cursor = packetData["cursor"].getInt
+        slippi.isConnected = true
+        slippi.nickName = packetData["nick"].getStr
+        slippi.version = packetData["version"].getStr
+        slippi.cursor = packetData["cursor"].getInt
 
       return
 
   echo "Connection with Dolphin failed."
-  enet_peer_reset(stream.peer)
+  enet_peer_reset(slippi.peer)
 
-proc poll*(stream: SlippiStream): Option[JsonNode] =
+proc poll*(slippi: SlippiStream): Option[JsonNode] =
   var event: ENetEvent
 
-  discard enet_host_service(stream.host, event.addr, 0)
+  discard enet_host_service(slippi.host, event.addr, 0)
 
   if event.`type` == ENetEventType.Receive:
     let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
     enet_packet_destroy(event.packet)
     return some(packetData)
 
-# proc readEventPayloads(stream: var SlippiStream, payload: string) =
-#   let payloadSize = readUint8(payload, 0x1)
-#   stream.numberOfCommands = (payloadSize - 1).floorDiv(3).int
+proc shiftPayloadToNextEvent(slippi: var SlippiStream) =
+  slippi.currentPayload = slippi.currentPayload[slippi.commandLengths[slippi.currentCommandKind] + 1..<slippi.currentPayload.len]
 
-#   var location = 0x2
-#   for _ in 0..<stream.numberOfCommands:
-#     let commandKind = CommandKind(readUint8(payload, location))
-#     stream.commandLengths[commandKind] = readUint16(payload, location + 0x1).int
-#     location += 0x3
+proc readEventPayloads(slippi: var SlippiStream) =
+  let payloadSize = readUint8(slippi.currentPayload, 0x1)
+  slippi.numberOfCommands = (payloadSize - 1).floorDiv(3).int
+
+  var location = 0x2
+  for _ in 0..<slippi.numberOfCommands:
+    let commandKind = CommandKind(readUint8(slippi.currentPayload, location))
+    slippi.commandLengths[commandKind] = readUint16(slippi.currentPayload, location + 0x1).int
+    location += 0x3
+
+  slippi.currentPayload = slippi.currentPayload[(payloadSize + 1).int..<slippi.currentPayload.len]
+
+proc readPostFrameUpdate(slippi: var SlippiStream) =
+  let
+    playerIndex = readUint8(slippi.currentPayload, 0x5).int
+    isFollower = readUint8(slippi.currentPayload, 0x6).bool
+
+  template performRead(playerState: untyped): untyped =
+    playerState.character = MeleeCharacter(readUint8(slippi.currentPayload, 0x7))
+    playerState.actionState = MeleeActionState(readUint16(slippi.currentPayload, 0x8))
+
+  if isFollower:
+    performRead(slippi.gameState.followerStates[playerIndex])
+  else:
+    performRead(slippi.gameState.playerStates[playerIndex])
+
+  slippi.shiftPayloadToNextEvent()
 
 
 var slippi = initSlippiStream()
@@ -109,49 +135,20 @@ while true:
   let message = slippi.poll()
   if message.isSome:
     if message.get["type"].getStr == "game_event":
-      var payloadStr = decode(message.get["payload"].getStr)
+      slippi.currentPayload = decode(message.get["payload"].getStr)
 
-      while payloadStr.len > 0:
-        let commandKind = CommandKind(readUint8(payloadStr, 0x0))
-        echo "Command Kind: " & $commandKind
+      while slippi.currentPayload.len > 0:
+        slippi.currentCommandKind = CommandKind(readUint8(slippi.currentPayload, 0x0))
+        #echo "Command Kind: " & $slippi.currentCommandKind
 
-        case commandKind:
-
-        of CommandKind.Unknown:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.EventPayloads:
-          let payloadSize = readUint8(payloadStr, 0x1)
-          slippi.numberOfCommands = (payloadSize - 1).floorDiv(3).int
-
-          var location = 0x2
-          for _ in 0..<slippi.numberOfCommands:
-            let commandKind = CommandKind(readUint8(payloadStr, location))
-            slippi.commandLengths[commandKind] = readUint16(payloadStr, location + 0x1).int
-            location += 0x3
-
-          payloadStr = payloadStr[payloadSize + 1..<payloadStr.len]
-
-        of CommandKind.GameStart:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.PreFrameUpdate:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.PostFrameUpdate:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.GameEnd:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.FrameStart:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.ItemUpdate:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.FrameBookend:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
-
-        of CommandKind.GeckoList:
-          payloadStr = payloadStr[slippi.commandLengths[commandKind] + 1..<payloadStr.len]
+        case slippi.currentCommandKind:
+        of CommandKind.Unknown: slippi.shiftPayloadToNextEvent()
+        of CommandKind.EventPayloads: slippi.readEventPayloads()
+        of CommandKind.GameStart: slippi.shiftPayloadToNextEvent()
+        of CommandKind.PreFrameUpdate: slippi.shiftPayloadToNextEvent()
+        of CommandKind.PostFrameUpdate: slippi.readPostFrameUpdate()
+        of CommandKind.GameEnd: slippi.shiftPayloadToNextEvent()
+        of CommandKind.FrameStart: slippi.shiftPayloadToNextEvent()
+        of CommandKind.ItemUpdate: slippi.shiftPayloadToNextEvent()
+        of CommandKind.FrameBookend: slippi.shiftPayloadToNextEvent()
+        of CommandKind.GeckoList: slippi.shiftPayloadToNextEvent()
