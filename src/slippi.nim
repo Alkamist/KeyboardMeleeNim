@@ -4,7 +4,7 @@ import std/tables
 import std/options
 import std/exitprocs
 import std/base64
-import std/decls
+#import std/decls
 import enet
 import binaryreading
 import melee
@@ -13,7 +13,7 @@ import melee
 let handshake = $ %* {"type": "connect_request", "cursor": 0}
 
 type
-  CommandKind* {.pure.} = enum
+  CommandKind {.pure.} = enum
     Unknown = 0x10,
     EventPayloads = 0x35,
     GameStart = 0x36,
@@ -116,11 +116,14 @@ proc readGameStart(slippi: var SlippiStream) =
 
   slippi.extractionCodeVersion = $versionMajor & "." & $versionMinor & "." & $versionBuild
 
+  template setPlayerAndFollowerStateField(fieldName: untyped, value: untyped): untyped =
+    slippi.gameState.playerStates[playerIndex].fieldName = value
+    slippi.gameState.followerStates[playerIndex].fieldName = value
+
   for playerIndex in 0..<4:
-    var state {.byaddr.} = slippi.gameState.playerStates[playerIndex]
-    state.playerKind = MeleePlayerKind(readUint8(slippi.currentPayload, 0x66 + (0x24 * playerIndex)))
-    state.costumeId = readUint8(slippi.currentPayload, 0x68 + (0x24 * playerIndex)).int
-    state.cpuLevel = readUint8(slippi.currentPayload, 0x74 + (0x24 * playerIndex)).int
+    setPlayerAndFollowerStateField(playerKind, MeleePlayerKind(readUint8(slippi.currentPayload, 0x66 + (0x24 * playerIndex))))
+    setPlayerAndFollowerStateField(costumeId, readUint8(slippi.currentPayload, 0x68 + (0x24 * playerIndex)).int)
+    setPlayerAndFollowerStateField(cpuLevel, readUint8(slippi.currentPayload, 0x74 + (0x24 * playerIndex)).int)
 
   slippi.shiftPayloadToNextEvent()
 

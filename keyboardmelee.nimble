@@ -11,4 +11,4 @@ backend = "c"
 
 # Dependencies
 
-requires "nim >= 1.2.6"
+requires "nim >= 1.4.4"
