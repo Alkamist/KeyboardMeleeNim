@@ -515,6 +515,12 @@ type
     SuperScopeCharged = 0x5c,
     Hammer = 0x5d,
 
+  MeleePlayerKind* {.pure.} = enum
+    Human = 0,
+    Cpu = 1,
+    Demo = 2,
+    Empty = 3,
+
   MeleeLCancelStatus* {.pure.} = enum
     None = 0,
     Successful = 1,
@@ -527,7 +533,10 @@ type
 
   MeleePlayerState* = object
     playerIndex*: int
+    playerKind*: MeleePlayerKind
+    cpuLevel*: int
     isFollower*: bool
+    costumeId*: int
     character*: MeleeCharacter
     actionState*: MeleeActionState
     xPosition*: float
@@ -566,5 +575,6 @@ type
 
   MeleeGameState* = object
     frameNumber*: int
+    randomSeed*: uint32
     playerStates*: array[4, MeleePlayerState]
     followerStates*: array[4, MeleePlayerState]
