@@ -419,9 +419,150 @@ type
     ThrownKirbySpitSShot = 0x17e,
     Unknown = 0xffff,
 
+  MeleeAttack* {.pure.} = enum
+    NotAttack = 0x0,
+    NonStaling = 0x1,
+    Jab1 = 0x2,
+    Jab2 = 0x3,
+    Jab3 = 0x4,
+    RapidJabs = 0x5,
+    DashAttack = 0x6,
+    SideTilt = 0x7,
+    UpTilt = 0x8,
+    DownTilt = 0x9,
+    SideSmash = 0xa,
+    UpSmash = 0xb,
+    DownSmash = 0xc,
+    NeutralAir = 0xd,
+    ForwardAir = 0xe,
+    BackAir = 0xf,
+    UpAir = 0x10,
+    DownAir = 0x11,
+    NeutralSpecial = 0x12,
+    SideSpecial = 0x13,
+    UpSpecial = 0x14,
+    DownSpecial = 0x15,
+    KirbyMarioSpecial = 0x16,
+    KirbyFoxSpecial = 0x17,
+    KirbyCaptainFalconSpecial = 0x18,
+    KirbyDonkeyKongSpecial = 0x19,
+    KirbyBowserSpecial = 0x1a,
+    KirbyLinkSpecial = 0x1b,
+    KirbySheikSpecial = 0x1c,
+    KirbyNessSpecial = 0x1d,
+    KirbyPeachSpecial = 0x1e,
+    KirbyIceClimbersSpecial = 0x1f,
+    KirbyPikachuSpecial = 0x20,
+    KirbySamusSpecial = 0x21,
+    KirbyYoshiSpecial = 0x22,
+    KirbyJigglypuffSpecial = 0x23,
+    KirbyMewtwoSpecial = 0x24,
+    KirbyLuigiSpecial = 0x25,
+    KirbyMarthSpecial = 0x26,
+    KirbyZeldaSpecial = 0x27,
+    KirbyYoungLinkSpecial = 0x28,
+    KirbyDoctorMarioSpecial = 0x29,
+    KirbyFalcoSpecial = 0x2a,
+    KirbyPichuSpecial = 0x2b,
+    KirbyMrGameAndWatchSpecial = 0x2c,
+    KirbyGanondorfSpecial = 0x2d,
+    KirbyRoySpecial = 0x2e,
+    Unknown1 = 0x2f,
+    Unknown2 = 0x30,
+    Unknown3 = 0x31,
+    GetUpAttackBack = 0x32,
+    GetUpAttackFront = 0x33,
+    Pummel = 0x34,
+    ForwardThrow = 0x35,
+    BackThrow = 0x36,
+    UpThrow = 0x37,
+    DownThrow = 0x38,
+    CargoForwardThrow = 0x39,
+    CargoBackThrow = 0x3a,
+    CargoUpThrow = 0x3b,
+    CargoDownThrow = 0x3c,
+    LedgeGetUpAttackSlow = 0x3d,
+    LedgeGetUpAttack = 0x3e,
+    BeamSwordJab = 0x3f,
+    BeamSwordTilt = 0x40,
+    BeamSwordSmash = 0x41,
+    BeamSwordDash = 0x42,
+    HomeRunBatJab = 0x43,
+    HomeRunBatTilt = 0x44,
+    HomeRunBatSmash = 0x45,
+    HomeRunBatDash = 0x46,
+    ParasolJab = 0x47,
+    ParasolTilt = 0x48,
+    ParasolSmash = 0x49,
+    ParasolDash = 0x4a,
+    FanJab = 0x4b,
+    FanTilt = 0x4c,
+    FanSmash = 0x4d,
+    FanDash = 0x4e,
+    StarRodJab = 0x4f,
+    StarRodTilt = 0x50,
+    StarRodSmash = 0x51,
+    StarRodDash = 0x52,
+    LipStickJab = 0x53,
+    LipStickTilt = 0x54,
+    LipStickSmash = 0x55,
+    LipStickDash = 0x56,
+    ParasolOpen = 0x57,
+    RayGunShoot = 0x58,
+    FireFlowerShoot = 0x59,
+    ScrewAttack = 0x5a,
+    SuperScopeRapid = 0x5b,
+    SuperScopeCharged = 0x5c,
+    Hammer = 0x5d,
+
+  MeleeLCancelStatus* {.pure.} = enum
+    None = 0,
+    Successful = 1,
+    Unsuccessful = 2,
+
+  MeleeHurtboxCollisionState* {.pure.} = enum
+    Vulnerable = 0,
+    Invulnerable = 1,
+    Intangible = 2,
+
   MeleePlayerState* = object
+    playerIndex*: int
+    isFollower*: bool
     character*: MeleeCharacter
     actionState*: MeleeActionState
+    xPosition*: float
+    yPosition*: float
+    isFacingRight*: bool
+    percent*: float
+    shieldSize*: float
+    lastHittingAttack*: MeleeAttack
+    currentComboCount*: int
+    reflectIsActive*: bool
+    isInvincible*: bool
+    isFastFalling*: bool
+    isInHitlag*: bool
+    isShielding*: bool
+    isInHitstun*: bool
+    detectionHitboxIsTouchingShield*: bool
+    isPowershielding*: bool
+    isSleeping*: bool
+    isDead*: bool
+    isOffscreen*: bool
+    lastHitBy*: int
+    stocksRemaining*: int
+    actionStateFrameCounter*: float
+    hitstunRemaining*: float
+    isAirborne*: bool
+    lastGroundId*: int
+    jumpsRemaining*: int
+    lCancelStatus*: MeleeLCancelStatus
+    hurtboxCollisionState*: MeleeHurtboxCollisionState
+    selfInducedAirXSpeed*: float
+    selfInducedYSpeed*: float
+    attackBasedXSpeed*: float
+    attackBasedYSpeed*: float
+    selfInducedGroundXSpeed*: float
+    hitlagFramesRemaining*: float
 
   MeleeGameState* = object
     frameNumber*: int

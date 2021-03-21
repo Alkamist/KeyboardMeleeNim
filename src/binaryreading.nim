@@ -57,9 +57,9 @@ func readInt64*(buffer: Buffer, location: int): int64 =
   cast[int64](buffer.readUint64(location)).maybeSwap(cpuEndian == littleEndian)
 
 func readFloat32*(buffer: Buffer, location: int): float32 =
-  cast[float32](buffer.readUint32(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[float32](buffer.readUint32(location))
 
 func readFloat64*(buffer: Buffer, location: int): float64 =
-  cast[float64](buffer.readUint64(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[float64](buffer.readUint64(location))
 
 {.pop.}

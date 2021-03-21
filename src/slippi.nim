@@ -115,9 +115,55 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
     playerIndex = readUint8(slippi.currentPayload, 0x5).int
     isFollower = readUint8(slippi.currentPayload, 0x6).bool
 
-  template performRead(playerState: untyped): untyped =
-    playerState.character = MeleeCharacter(readUint8(slippi.currentPayload, 0x7))
-    playerState.actionState = MeleeActionState(readUint16(slippi.currentPayload, 0x8))
+  template performRead(state: untyped): untyped =
+    state.playerIndex = playerIndex
+    state.isFollower = isFollower
+    state.character = MeleeCharacter(readUint8(slippi.currentPayload, 0x7))
+    state.actionState = MeleeActionState(readUint16(slippi.currentPayload, 0x8))
+    state.xPosition = readFloat32(slippi.currentPayload, 0xa)
+    state.yPosition = readFloat32(slippi.currentPayload, 0xe)
+    state.isFacingRight = readFloat32(slippi.currentPayload, 0x12) >= 0.0
+    state.percent = readFloat32(slippi.currentPayload, 0x16)
+    state.shieldSize = readFloat32(slippi.currentPayload, 0x1a)
+    state.lastHittingAttack = MeleeAttack(readUint8(slippi.currentPayload, 0x1e))
+    state.currentComboCount = readUint8(slippi.currentPayload, 0x1f).int
+    state.lastHitBy = readUint8(slippi.currentPayload, 0x20).int
+    state.stocksRemaining = readUint8(slippi.currentPayload, 0x21).int
+    state.actionStateFrameCounter = readFloat32(slippi.currentPayload, 0x22)
+    state.currentComboCount = readUint8(slippi.currentPayload, 0x1f).int
+
+    # State bit flags:
+    let
+      stateBitFlags1 = readUint8(slippi.currentPayload, 0x26)
+      stateBitFlags2 = readUint8(slippi.currentPayload, 0x27)
+      stateBitFlags3 = readUint8(slippi.currentPayload, 0x28)
+      stateBitFlags4 = readUint8(slippi.currentPayload, 0x29)
+      stateBitFlags5 = readUint8(slippi.currentPayload, 0x2a)
+
+    state.reflectIsActive = (0x10 and stateBitFlags1).bool
+    state.isInvincible = (0x04 and stateBitFlags2).bool
+    state.isFastFalling = (0x08 and stateBitFlags2).bool
+    state.isInHitlag = (0x20 and stateBitFlags2).bool
+    state.isShielding = (0x80 and stateBitFlags3).bool
+    state.isInHitstun = (0x02 and stateBitFlags4).bool
+    state.detectionHitboxIsTouchingShield = (0x04 and stateBitFlags4).bool
+    state.isPowershielding = (0x20 and stateBitFlags4).bool
+    state.isSleeping = (0x10 and stateBitFlags5).bool
+    state.isDead = (0x40 and stateBitFlags5).bool
+    state.isOffscreen = (0x80 and stateBitFlags5).bool
+
+    state.hitstunRemaining = readFloat32(slippi.currentPayload, 0x2b)
+    state.isAirborne = readUint8(slippi.currentPayload, 0x2f).bool
+    state.lastGroundId = readUint16(slippi.currentPayload, 0x30).int
+    state.jumpsRemaining = readUint8(slippi.currentPayload, 0x32).int
+    state.lCancelStatus = MeleeLCancelStatus(readUint8(slippi.currentPayload, 0x33))
+    state.hurtboxCollisionState = MeleeHurtboxCollisionState(readUint8(slippi.currentPayload, 0x34))
+    state.selfInducedAirXSpeed = readFloat32(slippi.currentPayload, 0x35)
+    state.selfInducedYSpeed = readFloat32(slippi.currentPayload, 0x39)
+    state.attackBasedXSpeed = readFloat32(slippi.currentPayload, 0x3d)
+    state.attackBasedYSpeed = readFloat32(slippi.currentPayload, 0x41)
+    state.selfInducedGroundXSpeed = readFloat32(slippi.currentPayload, 0x45)
+    state.hitlagFramesRemaining = readFloat32(slippi.currentPayload, 0x49)
 
   if isFollower:
     performRead(slippi.gameState.followerStates[playerIndex])
