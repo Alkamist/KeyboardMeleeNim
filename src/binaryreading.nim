@@ -48,13 +48,13 @@ func readInt8*(buffer: Buffer, location: int): int8 =
   cast[int8](buffer.readUint8(location))
 
 func readInt16*(buffer: Buffer, location: int): int16 =
-  cast[int16](buffer.readUint16(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[int16](buffer.readUint16(location))
 
 func readInt32*(buffer: Buffer, location: int): int32 =
-  cast[int32](buffer.readUint32(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[int32](buffer.readUint32(location))
 
 func readInt64*(buffer: Buffer, location: int): int64 =
-  cast[int64](buffer.readUint64(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[int64](buffer.readUint64(location))
 
 func readFloat32*(buffer: Buffer, location: int): float32 =
   cast[float32](buffer.readUint32(location))

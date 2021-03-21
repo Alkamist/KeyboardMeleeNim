@@ -1,6 +1,7 @@
-import times
+import std/times
 import delayedbutton
 import analogaxis
+
 
 type
   AStick* = object

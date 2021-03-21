@@ -1,5 +1,6 @@
-import times
+import std/times
 import analogaxis
+
 
 type
   StickTilter* = object

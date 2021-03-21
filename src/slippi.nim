@@ -4,10 +4,11 @@ import std/tables
 import std/options
 import std/exitprocs
 import std/base64
-#import std/decls
 import enet
 import binaryreading
 import melee
+
+export melee
 
 
 let handshake = $ %* {"type": "connect_request", "cursor": 0}
@@ -107,7 +108,7 @@ proc readEventPayloads(slippi: var SlippiStream) =
   slippi.currentPayload = slippi.currentPayload[(payloadSize + 1).int..<slippi.currentPayload.len]
 
 proc readGameStart(slippi: var SlippiStream) =
-  slippi.gameState.frameNumber = -10000
+  slippi.gameState = MeleeGameState()
 
   let
     versionMajor = readUint8(slippi.currentPayload, 0x1)
@@ -231,14 +232,15 @@ proc poll*(slippi: var SlippiStream) =
         of CommandKind.GeckoList: slippi.shiftPayloadToNextEvent()
 
 
-var slippi = initSlippiStream()
+when isMainModule:
+  var slippi = initSlippiStream()
 
-slippi.connect()
+  slippi.connect()
 
-proc onFrameEnd(gameState: MeleeGameState) =
-  echo gameState.playerStates[0].xPosition
+  proc onFrameEnd(gameState: MeleeGameState) =
+    echo gameState.frameNumber
 
-slippi.addFrameSubscriber(onFrameEnd)
+  slippi.addFrameSubscriber(onFrameEnd)
 
-while true:
-  slippi.poll()
+  while true:
+    slippi.poll()

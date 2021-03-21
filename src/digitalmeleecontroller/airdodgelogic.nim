@@ -1,6 +1,7 @@
-import times
+import std/times
 import button
 import analogaxis
+
 
 type
   AirDodgeLogic* = object
