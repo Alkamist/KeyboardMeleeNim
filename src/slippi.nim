@@ -28,7 +28,8 @@ type
   SlippiStream* = object
     isConnected*: bool
     nickName*: string
-    version*: string
+    dolphinVersion*: string
+    extractionCodeVersion*: string
     cursor*: int
     host: ptr ENetHost
     peer: ptr ENetPeer
@@ -79,7 +80,7 @@ proc connect*(slippi: var SlippiStream) =
 
         slippi.isConnected = true
         slippi.nickName = packetData["nick"].getStr
-        slippi.version = packetData["version"].getStr
+        slippi.dolphinVersion = packetData["version"].getStr
         slippi.cursor = packetData["cursor"].getInt
 
       return
@@ -113,7 +114,7 @@ proc readGameStart(slippi: var SlippiStream) =
     versionMinor = readUint8(slippi.currentPayload, 0x2)
     versionBuild = readUint8(slippi.currentPayload, 0x3)
 
-  slippi.version = $versionMajor & "." & $versionMinor & "." & $versionBuild
+  slippi.extractionCodeVersion = $versionMajor & "." & $versionMinor & "." & $versionBuild
 
   for playerIndex in 0..<4:
     var state {.byaddr.} = slippi.gameState.playerStates[playerIndex]
@@ -190,6 +191,11 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
 
   slippi.shiftPayloadToNextEvent()
 
+proc readGameEnd(slippi: var SlippiStream) =
+  slippi.gameState.gameEndMethod = some(MeleeGameEndMethod(readUint8(slippi.currentPayload, 0x1)))
+  slippi.gameState.lrasInitiator = readInt8(slippi.currentPayload, 0x2).int
+  slippi.shiftPayloadToNextEvent()
+
 proc readFrameBookend(slippi: var SlippiStream) =
   for subscriber in slippi.frameSubscribers:
     subscriber(slippi.gameState)
@@ -215,7 +221,7 @@ proc poll*(slippi: var SlippiStream) =
         of CommandKind.GameStart: slippi.readGameStart()
         of CommandKind.PreFrameUpdate: slippi.shiftPayloadToNextEvent()
         of CommandKind.PostFrameUpdate: slippi.readPostFrameUpdate()
-        of CommandKind.GameEnd: slippi.shiftPayloadToNextEvent()
+        of CommandKind.GameEnd: slippi.readGameEnd()
         of CommandKind.FrameStart: slippi.readFrameStart()
         of CommandKind.ItemUpdate: slippi.shiftPayloadToNextEvent()
         of CommandKind.FrameBookend: slippi.readFrameBookend()

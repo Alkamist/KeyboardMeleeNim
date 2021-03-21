@@ -1,3 +1,6 @@
+import std/options
+
+
 type
   MeleeCharacter* {.pure.} = enum
     Mario = 0x00,
@@ -531,6 +534,11 @@ type
     Invulnerable = 1,
     Intangible = 2,
 
+  MeleeGameEndMethod* {.pure.} = enum
+    Timeout = 1,
+    GameEnd = 2,
+    NoContest = 7,
+
   MeleePlayerState* = object
     playerIndex*: int
     playerKind*: MeleePlayerKind
@@ -576,5 +584,7 @@ type
   MeleeGameState* = object
     frameNumber*: int
     randomSeed*: uint32
+    gameEndMethod*: Option[MeleeGameEndMethod]
+    lrasInitiator*: int
     playerStates*: array[4, MeleePlayerState]
     followerStates*: array[4, MeleePlayerState]

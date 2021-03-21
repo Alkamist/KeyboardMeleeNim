@@ -45,7 +45,7 @@ func readUint64*(buffer: Buffer, location: int): uint64 =
   cast[ptr uint64](buffer[location].unsafeAddr)[].maybeSwap(cpuEndian == littleEndian)
 
 func readInt8*(buffer: Buffer, location: int): int8 =
-  cast[int8](buffer.readUint8(location)).maybeSwap(cpuEndian == littleEndian)
+  cast[int8](buffer.readUint8(location))
 
 func readInt16*(buffer: Buffer, location: int): int16 =
   cast[int16](buffer.readUint16(location)).maybeSwap(cpuEndian == littleEndian)
