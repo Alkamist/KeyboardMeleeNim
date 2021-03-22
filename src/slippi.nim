@@ -195,14 +195,17 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
 
   slippi.shiftPayloadToNextEvent()
 
+  for subscriber in slippi.frameSubscribers:
+    subscriber(slippi.gameState)
+
 proc readGameEnd(slippi: var SlippiStream) =
   slippi.gameState.gameEndMethod = some(MeleeGameEndMethod(readUint8(slippi.currentPayload, 0x1)))
   slippi.gameState.lrasInitiator = readInt8(slippi.currentPayload, 0x2).int
   slippi.shiftPayloadToNextEvent()
 
 proc readFrameBookend(slippi: var SlippiStream) =
-  for subscriber in slippi.frameSubscribers:
-    subscriber(slippi.gameState)
+  #for subscriber in slippi.frameSubscribers:
+  #  subscriber(slippi.gameState)
 
   slippi.shiftPayloadToNextEvent()
 
