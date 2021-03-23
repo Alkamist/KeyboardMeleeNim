@@ -1,5 +1,5 @@
 import std/times
-import button
+import ../button
 
 
 type

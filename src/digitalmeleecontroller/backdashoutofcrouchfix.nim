@@ -1,6 +1,6 @@
 import std/times
-import button
-import analogaxis
+import ../button
+import ../analogaxis
 
 
 type

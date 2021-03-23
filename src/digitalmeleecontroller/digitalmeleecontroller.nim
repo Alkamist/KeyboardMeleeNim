@@ -1,7 +1,7 @@
-import button
-import analogaxis
-import analogslider
-import gamecubecontrollerstate
+import ../button
+import ../analogaxis
+import ../analogslider
+import ../gccstate
 import jumplogic
 import airdodgelogic
 import sticktilter
@@ -10,7 +10,7 @@ import bstick
 import backdashoutofcrouchfix
 import safegroundeddownb
 
-export gamecubecontrollerstate
+export gccstate
 
 
 type

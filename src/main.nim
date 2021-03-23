@@ -6,6 +6,7 @@ from os import fileExists
 import kbdinput
 import vjoy
 import digitalmeleecontroller/digitalmeleecontroller
+import dolphincontroller
 
 
 proc parseKeyBindsJson(inputBinds: JsonNode): Table[Action, seq[Key]] =
@@ -111,8 +112,9 @@ var
   isEnabled = true
   onOffToggle = false
   onOffTogglePrevious = false
-  vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
+  #vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
   controller = initDigitalMeleeController()
+  dolphinCtrl = initDolphinController(1)
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool
@@ -135,15 +137,19 @@ proc main() {.async.} =
       controller.update()
 
       for button, bindId in vJoyButtonBinds.pairs:
-        vJoyDevice.setButton(bindId, controller.state[button].isPressed)
+        dolphinCtrl.setButton(button, controller.state[button].isPressed)
+        #vJoyDevice.setButton(bindId, controller.state[button].isPressed)
 
       for axis, bindId in vJoyAxisBinds.pairs:
-        vJoyDevice.setAxis(bindId, controller.state[axis].value)
+        dolphinCtrl.setAxis(axis, controller.state[axis].value * 0.5 + 0.5)
+        #vJoyDevice.setAxis(bindId, controller.state[axis].value)
 
       for slider, bindId in vJoySliderBinds.pairs:
-        vJoyDevice.setAxis(bindId, controller.state[slider].value)
+        dolphinCtrl.setSlider(slider, controller.state[slider].value)
+        #vJoyDevice.setAxis(bindId, controller.state[slider].value)
 
-      vJoyDevice.sendInputs()
+      dolphinCtrl.writeControllerState()
+      #vJoyDevice.sendInputs()
 
     onOffTogglePrevious = onOffToggle
 

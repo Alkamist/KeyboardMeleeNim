@@ -1,5 +1,5 @@
 import std/times
-import analogaxis
+import ../analogaxis
 
 
 type

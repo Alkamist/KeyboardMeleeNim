@@ -28,6 +28,9 @@ proc justActivated*(axis: AnalogAxis): bool =
 proc justDeactivated*(axis: AnalogAxis): bool =
   axis.wasActive and not axis.isActive
 
+proc justChanged*(axis: AnalogAxis): bool =
+  axis.value != axis.previousValue
+
 proc setValueFromStates*(axis: var AnalogAxis; lowState, highState: bool) =
   let
     lowAndHigh = lowState and highState
