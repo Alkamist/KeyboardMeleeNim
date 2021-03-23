@@ -37,6 +37,7 @@ var configJson = parseJson("{}")
 if fileExists("config.json"):
   configJson = parseJson(readFile("config.json"))
 
+configJson.insertIfMissing("useVJoy", false)
 configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
@@ -104,6 +105,7 @@ startVJoy(configJson["vJoyDllPath"].getStr)
 let
   onOffToggleKey = parseEnum[Key](configJson["onOffToggleKey"].getStr)
   keyBinds = parseKeyBindsJson(configJson["keyBinds"])
+  useVJoy = configJson["useVJoy"].getBool
   vJoyButtonBinds = parseVJoyButtonBindsJson(configJson["vJoyButtonBinds"])
   vJoyAxisBinds = parseVJoyAxisBindsJson(configJson["vJoyAxisBinds"])
   vJoySliderBinds = parseVJoySliderBindsJson(configJson["vJoySliderBinds"])
@@ -112,9 +114,12 @@ var
   isEnabled = true
   onOffToggle = false
   onOffTogglePrevious = false
-  #vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
+  vJoyDevice: VJoyDevice
   controller = initDigitalMeleeController()
   dolphinCtrl = initDolphinController(1)
+
+if useVJoy:
+  vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool
@@ -136,20 +141,30 @@ proc main() {.async.} =
 
       controller.update()
 
-      for button, bindId in vJoyButtonBinds.pairs:
-        dolphinCtrl.setButton(button, controller.state[button].isPressed)
-        #vJoyDevice.setButton(bindId, controller.state[button].isPressed)
+      if useVJoy:
+        for button, bindId in vJoyButtonBinds.pairs:
+          vJoyDevice.setButton(bindId, controller.state[button].isPressed)
 
-      for axis, bindId in vJoyAxisBinds.pairs:
-        dolphinCtrl.setAxis(axis, controller.state[axis].value)
-        #vJoyDevice.setAxis(bindId, controller.state[axis].value)
+        for axis, bindId in vJoyAxisBinds.pairs:
+          vJoyDevice.setAxis(bindId, controller.state[axis].value)
 
-      for slider, bindId in vJoySliderBinds.pairs:
-        dolphinCtrl.setSlider(slider, controller.state[slider].value)
-        #vJoyDevice.setAxis(bindId, controller.state[slider].value)
+        for slider, bindId in vJoySliderBinds.pairs:
+          vJoyDevice.setAxis(bindId, controller.state[slider].value)
 
-      dolphinCtrl.writeControllerState()
-      #vJoyDevice.sendInputs()
+        vJoyDevice.sendInputs()
+
+      else:
+        for button in GCCButton:
+          dolphinCtrl.setButton(button, controller.state[button].isPressed)
+
+        for axis in GCCAxis:
+          dolphinCtrl.setAxis(axis, controller.state[axis].value)
+
+        for slider in GCCSlider:
+          dolphinCtrl.setSlider(slider, controller.state[slider].value)
+
+        dolphinCtrl.writeControllerState()
+
 
     onOffTogglePrevious = onOffToggle
 

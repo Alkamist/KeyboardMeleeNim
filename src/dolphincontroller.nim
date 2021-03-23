@@ -97,7 +97,7 @@ proc setButton*(controller: var DolphinController, button: GCCButton, state: boo
   controller.state[button].isPressed = state
 
 proc setAxis*(controller: var DolphinController, axis: GCCAxis, value: float) =
-  controller.state[axis].value = 0.5 * (0.626 * value + 1.0)
+  controller.state[axis].value = 0.5 * (0.626 * value + 1.0 + 1.0 / 255.0)
 
 proc setSlider*(controller: var DolphinController, slider: GCCSlider, value: float) =
   controller.state[slider].value = (value * 1.94).min(1.0)
