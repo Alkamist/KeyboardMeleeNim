@@ -141,7 +141,7 @@ proc main() {.async.} =
         #vJoyDevice.setButton(bindId, controller.state[button].isPressed)
 
       for axis, bindId in vJoyAxisBinds.pairs:
-        dolphinCtrl.setAxis(axis, controller.state[axis].value * 0.5 + 0.5)
+        dolphinCtrl.setAxis(axis, controller.state[axis].value)
         #vJoyDevice.setAxis(bindId, controller.state[axis].value)
 
       for slider, bindId in vJoySliderBinds.pairs:

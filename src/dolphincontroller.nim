@@ -20,7 +20,10 @@ type
   HANDLE = int
   WINBOOL = int32
   DWORD = int32
+  LPDWORD = ptr DWORD
+  WCHAR = uint16
   LPCSTR = cstring
+  LPCWSTR = ptr WCHAR
   SECURITY_ATTRIBUTES {.pure.} = object
     nLength*: DWORD
     lpSecurityDescriptor*: LPVOID
@@ -38,39 +41,49 @@ type
     union1*: OVERLAPPED_UNION1
     hEvent*: HANDLE
   LPOVERLAPPED = ptr OVERLAPPED
-  LPOVERLAPPED_COMPLETION_ROUTINE* = proc (dwErrorCode: DWORD, dwNumberOfBytesTransfered: DWORD, lpOverlapped: LPOVERLAPPED): VOID {.stdcall.}
 
 const
   GENERIC_WRITE = 0x40000000
   OPEN_EXISTING = 3
+  INVALID_HANDLE_VALUE = HANDLE(-1)
 
-proc CreateFileA(lpFileName: LPCSTR,
-                 dwDesiredAccess: DWORD,
-                 dwShareMode: DWORD,
-                 lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
-                 dwCreationDisposition: DWORD,
-                 dwFlagsAndAttributes: DWORD,
-                 hTemplateFile: HANDLE): HANDLE {.winapi, stdcall, dynlib: "kernel32", importc.}
-proc WriteFileEx(hFile: HANDLE,
-                 lpBuffer: LPCVOID,
-                 nNumberOfBytesToWrite: DWORD,
-                 lpOverlapped: LPOVERLAPPED,
-                 lpCompletionRoutine: LPOVERLAPPED_COMPLETION_ROUTINE): WINBOOL {.winapi, stdcall, dynlib: "kernel32", importc.}
+proc CreateFile(lpFileName: LPCSTR,
+                dwDesiredAccess: DWORD,
+                dwShareMode: DWORD,
+                lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
+                dwCreationDisposition: DWORD,
+                dwFlagsAndAttributes: DWORD,
+                hTemplateFile: HANDLE): HANDLE {.winapi, stdcall, dynlib: "kernel32", importc: "CreateFileA".}
+proc CreateFile(lpFileName: LPCWSTR,
+                dwDesiredAccess: DWORD,
+                dwShareMode: DWORD,
+                lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
+                dwCreationDisposition: DWORD,
+                dwFlagsAndAttributes: DWORD,
+                hTemplateFile: HANDLE): HANDLE {.winapi, stdcall, dynlib: "kernel32", importc: "CreateFileW".}
+proc WriteFile(hFile: HANDLE,
+               lpBuffer: LPCVOID,
+               nNumberOfBytesToWrite: DWORD,
+               lpNumberOfBytesWritten: LPDWORD,
+               lpOverlapped: LPOVERLAPPED): WINBOOL {.winapi, stdcall, dynlib: "kernel32", importc.}
 proc CloseHandle(hObject: HANDLE): WINBOOL {.winapi, stdcall, dynlib: "kernel32", importc.}
 
 type
   Pipe = object
     handle: HANDLE
+    bytesWritten: DWORD
 
 proc initPipe(directory: string): Pipe =
-  result.handle = CreateFileA(directory.LPCSTR, GENERIC_WRITE, 0, nil, OPEN_EXISTING, 0, 0)
+  result.handle = CreateFile(directory.LPCSTR, GENERIC_WRITE, 0, nil, OPEN_EXISTING, 0, 0)
+  if result.handle == INVALID_HANDLE_VALUE:
+    echo "Could not connect to Dolphin pipe."
+    quit(QuitFailure)
 
 proc `=destroy`(pipe: var Pipe) =
   CloseHandle(pipe.handle)
 
-proc write(pipe: Pipe, output: string) =
-  var overlapped: OVERLAPPED
-  WriteFileEx(pipe.handle, output.cstring, (output.len + 1).DWORD, overlapped.addr, nil)
+proc write(pipe: var Pipe, output: string) =
+  WriteFile(pipe.handle, output.cstring, (output.len + 1).DWORD, pipe.bytesWritten.addr, nil)
 
 type
   DolphinController* = object
@@ -84,13 +97,13 @@ proc setButton*(controller: var DolphinController, button: GCCButton, state: boo
   controller.state[button].isPressed = state
 
 proc setAxis*(controller: var DolphinController, axis: GCCAxis, value: float) =
-  controller.state[axis].value = value
+  controller.state[axis].value = 0.5 * (0.626 * value + 1.0)
 
 proc setSlider*(controller: var DolphinController, slider: GCCSlider, value: float) =
-  controller.state[slider].value = value
+  controller.state[slider].value = (value * 1.94).min(1.0)
 
 proc writeControllerState*(controller: var DolphinController) =
-  var outputStr = ""
+  var outputStr = "\n"
 
   for buttonKind in GCCButton:
     let button = controller.state[buttonKind]
@@ -114,51 +127,30 @@ proc writeControllerState*(controller: var DolphinController) =
       else:
         outputStr.add("RELEASE " & name & "\n")
 
-  # let
-  #   xAxis = controller.state[GCCAxis.X]
-  #   yAxis = controller.state[GCCAxis.Y]
-  #   cXAxis = controller.state[GCCAxis.CX]
-  #   cYAxis = controller.state[GCCAxis.CY]
+  let
+    xAxis = controller.state[GCCAxis.X]
+    yAxis = controller.state[GCCAxis.Y]
+    cXAxis = controller.state[GCCAxis.CX]
+    cYAxis = controller.state[GCCAxis.CY]
 
-  # if xAxis.justChanged or yAxis.justChanged:
-  #   outputStr.add("SET MAIN " & $xAxis.value & " " & $yAxis.value & "\n")
+  if xAxis.justChanged or yAxis.justChanged:
+    outputStr.add("SET MAIN " & $xAxis.value & " " & $yAxis.value & "\n")
 
-  # if cXAxis.justChanged or cYAxis.justChanged:
-  #   outputStr.add("SET C " & $cXAxis.value & " " & $cYAxis.value & "\n")
+  if cXAxis.justChanged or cYAxis.justChanged:
+    outputStr.add("SET C " & $cXAxis.value & " " & $cYAxis.value & "\n")
 
-  # let
-  #   lSlider = controller.state[GCCSlider.L]
-  #   rSlider = controller.state[GCCSlider.R]
+  let
+    lSlider = controller.state[GCCSlider.L]
+    rSlider = controller.state[GCCSlider.R]
 
-  # if lSlider.justChanged:
-  #   outputStr.add("SET L " & $lSlider.value & "\n")
+  if lSlider.justChanged:
+    outputStr.add("SET L " & $lSlider.value & "\n")
 
-  # if rSlider.justChanged:
-  #   outputStr.add("SET R " & $rSlider.value & "\n")
+  if rSlider.justChanged:
+    outputStr.add("SET R " & $rSlider.value & "\n")
 
-  if outputStr != "":
-   outputStr.add("FLUSH\n")
-   echo outputStr
-   controller.pipe.write(outputStr)
+  if outputStr != "\n":
+    outputStr.add("FLUSH\n")
+    controller.pipe.write(outputStr)
 
   controller.state.update()
-
-  # outputStr.add("FLUSH\n")
-  # if outputStr != "FLUSH\n":
-  #   echo outputStr
-  # controller.pipe.write(outputStr)
-
-
-# const output = """
-# RELEASE A
-# RELEASE B
-# FLUSH
-
-# """
-
-# let handle = CreateFileA("\\\\.\\pipe\\slippibot1".LPCSTR, GENERIC_WRITE, 0, nil, OPEN_EXISTING, 0, 0)
-
-# var overlapped: OVERLAPPED
-# WriteFileEx(handle, output.cstring, (output.len + 1).DWORD, overlapped.addr, nil)
-
-# CloseHandle(handle)
