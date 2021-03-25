@@ -1,4 +1,3 @@
-import std/options
 import ../../melee
 import ../../gccstate
 import waveland
@@ -7,7 +6,7 @@ import waveland
 type
   WaveDash* = object
     isInProgress*: bool
-    frameCount*: int
+    startingFrame*: int
     waveLand*: WaveLand
 
 proc `distance`*(waveDash: var WaveDash): float =
@@ -16,23 +15,19 @@ proc `distance`*(waveDash: var WaveDash): float =
 proc `distance=`*(waveDash: var WaveDash, value: float) =
   waveDash.waveLand.distance = value
 
-proc execute*(waveDash: var WaveDash,
-              playerState: PlayerState,
-              distance = none(float)) =
+proc execute*(waveDash: var WaveDash, playerState: PlayerState) =
   if not playerState.isAirborne:
     waveDash.isInProgress = true
-    waveDash.frameCount = 0
-    if distance.isSome:
-      waveDash.waveLand.distance = distance.get
+    waveDash.startingFrame = playerState.frameCount
 
-proc update*(waveDash: var WaveDash,
-             controller: var GCCState,
-             playerState: PlayerState) =
+proc update*(waveDash: var WaveDash, controller: var GCCState, playerState: PlayerState) =
   if waveDash.isInProgress:
-    if waveDash.frameCount == 0:
+    let frameCount = playerState.frameCount - waveDash.startingFrame
+
+    if frameCount == 0:
       controller.yButton.isPressed = true
 
-    elif waveDash.frameCount == 1:
+    elif frameCount == 1:
       controller.lButton.isPressed = false
       controller.yButton.isPressed = false
 
@@ -40,10 +35,7 @@ proc update*(waveDash: var WaveDash,
          playerState.actionFrame >= (jumpSquatFrames(playerState.character) - 1).float:
       waveDash.waveLand.execute(playerState)
 
-    elif waveDash.frameCount >= jumpSquatFrames(playerState.character):
-      controller.lButton.isPressed = false
+    elif frameCount >= jumpSquatFrames(playerState.character):
       waveDash.isInProgress = false
 
     waveDash.waveLand.update(controller, playerState)
-
-    waveDash.frameCount += 1

@@ -210,9 +210,9 @@ proc readFrameBookend(slippi: var SlippiStream) =
 
   slippi.shiftPayloadToNextEvent()
 
-proc poll*(slippi: var SlippiStream) =
+proc poll*(slippi: var SlippiStream): bool =
   var event: ENetEvent
-  discard enet_host_service(slippi.host, event.addr, 1000)
+  let eventWasDispatched = enet_host_service(slippi.host, event.addr, 0) == 1
 
   if event.`type` == ENetEventType.Receive:
     let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
@@ -235,11 +235,23 @@ proc poll*(slippi: var SlippiStream) =
         of CommandKind.FrameBookend: slippi.readFrameBookend()
         of CommandKind.GeckoList: slippi.shiftPayloadToNextEvent()
 
+    return eventWasDispatched
+
 proc skipToRealTime*(slippi: var SlippiStream) =
+  let startTime = cpuTime()
+  var lastDispatchTime = none(float)
+
   while true:
-    let prePollTime = cpuTime()
-    slippi.poll()
-    if cpuTime() - prePollTime > 0.01:
+    let eventWasDispatched = slippi.poll()
+    if eventWasDispatched:
+      if lastDispatchTime.isSome and cpuTime() - lastDispatchTime.get > 0.01:
+        echo "Skipped to realtime."
+        return
+
+      lastDispatchTime = some(cpuTime())
+
+    if lastDispatchTime.isNone and cpuTime() - startTime > 1.0:
+      echo "There is no game in progress."
       return
 
 
@@ -248,7 +260,6 @@ when isMainModule:
 
   slippi.connect()
   slippi.skipToRealTime()
-  echo "Skipped to realtime."
 
   proc onFrameEnd(gameState: GameState) =
     echo gameState.playerStates[0].isAirborne
@@ -256,4 +267,4 @@ when isMainModule:
   slippi.addFrameSubscriber(onFrameEnd)
 
   while true:
-    slippi.poll()
+    discard slippi.poll()

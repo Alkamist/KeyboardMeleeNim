@@ -4,21 +4,21 @@ import ../../gccstate
 
 type
   SpotDodge* = object
-    hasControl*: bool
-    startTime: int
+    isInProgress*: bool
+    startingFrame: int
 
-proc execute*(spotDodge: var SpotDodge, gameState: GameState) =
-  spotDodge.hasControl = true
-  spotDodge.startTime = gameState.frameCount
+proc execute*(spotDodge: var SpotDodge, playerState: PlayerState) =
+  if not playerState.isAirborne:
+    spotDodge.isInProgress = true
+    spotDodge.startingFrame = playerState.frameCount
 
-proc update*(spotDodge: var SpotDodge,
-             controller: var GCCState,
-             gameState: GameState,
-             playerState: PlayerState) =
-  if spotDodge.hasControl:
-    if playerState.isAirborne or gameState.frameCount - spotDodge.startTime >= 2:
-      spotDodge.hasControl = false
-      return
+proc update*(spotDodge: var SpotDodge, controller: var GCCState, playerState: PlayerState) =
+  if spotDodge.isInProgress:
+    let frameCount = playerState.frameCount - spotDodge.startingFrame
 
-    controller.rButton.isPressed = true
-    controller.yAxis.value = -1.0
+    if frameCount == 0:
+      controller.rButton.isPressed = true
+      controller.yAxis.value = -1.0
+
+    else:
+      spotDodge.isInProgress = false

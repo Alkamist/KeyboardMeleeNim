@@ -132,7 +132,7 @@ proc onNewFrame(gameState: GameState) =
 
 proc main() {.async.} =
   while true:
-    stream.poll()
+    discard stream.poll()
 
     onOffToggle = keyIsPressed(onOffToggleKey)
     if onOffToggle and not onOffTogglePrevious:

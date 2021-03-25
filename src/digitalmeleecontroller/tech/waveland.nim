@@ -1,5 +1,4 @@
 import std/math
-import std/options
 import ../../melee
 import ../../gccstate
 
@@ -12,22 +11,18 @@ const
 type
   WaveLand* = object
     isInProgress*: bool
-    frameCount*: int
+    startingFrame*: int
     distance*: float
 
-proc execute*(waveLand: var WaveLand,
-              playerState: PlayerState,
-              distance = none(float)) =
+proc execute*(waveLand: var WaveLand, playerState: PlayerState) =
   waveLand.isInProgress = true
-  waveLand.frameCount = 0
-  if distance.isSome:
-    waveLand.distance = distance.get
+  waveLand.startingFrame = playerState.frameCount
 
-proc update*(waveLand: var WaveLand,
-             controller: var GCCState,
-             playerState: PlayerState) =
+proc update*(waveLand: var WaveLand, controller: var GCCState, playerState: PlayerState) =
   if waveLand.isInProgress:
-    if waveLand.frameCount == 0:
+    let frameCount = playerState.frameCount - waveLand.startingFrame
+
+    if frameCount == 0:
       let
         clampedDistance = waveLand.distance.max(-1.0).min(1.0)
         zeroToOneDistance = 0.5 * (clampedDistance + 1.0)
@@ -37,8 +32,5 @@ proc update*(waveLand: var WaveLand,
                controller.yAxis,
                zeroToOneDistance * angleMagnitude + angleStart)
 
-    elif waveLand.frameCount == 1:
-      controller.lButton.isPressed = false
+    elif frameCount == 1:
       waveLand.isInProgress = false
-
-    waveLand.frameCount += 1

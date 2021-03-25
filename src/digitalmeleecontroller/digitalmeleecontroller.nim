@@ -67,24 +67,25 @@ proc onNewFrame*(controller: var DigitalMeleeController, gameState: GameState) =
   controller.playerState = gameState.playerStates[0]
   controller.opponentState = gameState.playerStates[1]
 
-  controller.waveDash.update(controller.state, controller.playerState)
-
-proc hasControl(controller: DigitalMeleeController): bool =
-  not controller.waveDash.isInProgress
-
-proc update*(controller: var DigitalMeleeController) =
-  #if controller.opponentEnteredState(ActionState.Grab) or
-  #   controller.opponentEnteredState(ActionState.GrabRunning):
-  #  controller.spotDodge.execute(controller.gameState)
+  if controller.opponentEnteredState(ActionState.Grab) or
+     controller.opponentEnteredState(ActionState.GrabRunning):
+    controller.spotDodge.execute(controller.playerState)
+  controller.spotDodge.update(controller.state, controller.playerState)
 
   if controller.actions[Action.BUp].justPressed:
     controller.waveDash.execute(controller.playerState)
-
   let (meleeX, meleeY) = circularGate(controller.state.xAxis.value, controller.state.yAxis.value, 1.0)
   controller.waveDash.distance = meleeX
+  controller.waveDash.update(controller.state, controller.playerState)
 
-  #controller.spotDodge.update(controller.state, controller.gameState, controller.playerState)
+  controller.state.update()
+  controller.updateActions()
 
+proc hasControl(controller: DigitalMeleeController): bool =
+  not controller.waveDash.isInProgress and
+  not controller.spotDodge.isInProgress
+
+proc update*(controller: var DigitalMeleeController) =
   if controller.hasControl:
     controller.state.xAxis.setValueFromStates(controller.actions[Action.Left].isPressed, controller.actions[Action.Right].isPressed)
     controller.state.yAxis.setValueFromStates(controller.actions[Action.Down].isPressed, controller.actions[Action.Up].isPressed)
@@ -102,6 +103,3 @@ proc update*(controller: var DigitalMeleeController) =
     controller.state.dRightButton.isPressed = controller.actions[Action.DRight].isPressed
     controller.state.dDownButton.isPressed = controller.actions[Action.DDown].isPressed
     controller.state.dUpButton.isPressed = controller.actions[Action.DUp].isPressed
-
-  controller.state.update()
-  controller.updateActions()
