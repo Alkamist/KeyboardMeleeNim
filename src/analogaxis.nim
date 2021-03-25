@@ -1,3 +1,21 @@
+import std/math
+
+
+proc withMagnitude*(xValue, yValue, magnitude: float): (float, float) =
+  let currentMagnitude = sqrt(pow(xValue, 2) + pow(yValue, 2))
+  if currentMagnitude > 0.0:
+    let scaleFactor = magnitude / currentMagnitude
+    (xValue * scaleFactor, yValue * scaleFactor)
+  else:
+    (magnitude, 0.0)
+
+proc circularGate*(xValue, yValue, magnitude: float): (float, float) =
+  let currentMagnitude = sqrt(pow(xValue, 2) + pow(yValue, 2))
+  if currentMagnitude > magnitude:
+    withMagnitude(xValue, yValue, magnitude)
+  else:
+    (xValue, yValue)
+
 type
   AnalogAxis* = object
     value*: float
@@ -11,9 +29,7 @@ proc initAnalogAxis*(): AnalogAxis =
   result.highStateWasFirst = true
 
 proc direction*(axis: AnalogAxis): float =
-  if axis.value > 0.0: 1.0
-  elif axis.value < 0.0: -1.0
-  else: 0.0
+  axis.value.sgn.float
 
 proc justCrossedCenter*(axis: AnalogAxis): bool =
   (axis.value < 0.0 and axis.previousValue >= 0.0) or
@@ -52,3 +68,7 @@ proc setValueFromStates*(axis: var AnalogAxis; lowState, highState: bool) =
 proc update*(axis: var AnalogAxis) =
   axis.previousValue = axis.value
   axis.wasActive = axis.isActive
+
+proc setAngle*(xAxis, yAxis: var AnalogAxis; angle: float) =
+  xAxis.value = angle.cos
+  yAxis.value = angle.sin

@@ -4,14 +4,13 @@ import std/tables
 import std/options
 import std/exitprocs
 import std/base64
+import std/times
 import enet
 import binaryreading
 import melee
 
 export melee
 
-
-let handshake = $ %* {"type": "connect_request", "cursor": 0}
 
 type
   CommandKind {.pure.} = enum
@@ -39,8 +38,8 @@ type
     commandLengths: Table[CommandKind, int]
     currentPayload: string
     currentCommandKind: CommandKind
-    gameState: MeleeGameState
-    frameSubscribers: seq[proc(gameState: MeleeGameState)]
+    gameState: GameState
+    frameSubscribers: seq[proc(gameState: GameState)]
 
 
 proc initSlippiStream*(address = "127.0.0.1",
@@ -64,32 +63,36 @@ proc `=destroy`(slippi: var SlippiStream) =
   enet_peer_disconnect(slippi.peer, 0)
   enet_host_destroy(slippi.host)
 
-proc connect*(slippi: var SlippiStream) =
+proc connect*(slippi: var SlippiStream, cursor = 0) =
+  let handshake = $ %* {"type": "connect_request", "cursor": cursor}
+
   var event: ENetEvent
 
-  for _ in 0..<5:
-    if (enet_host_service(slippi.host, event.addr, 5000) > 0 and event.`type` == ENetEventType.Connect):
-      echo "Connected to Dolphin."
-      let packet = enet_packet_create(handshake.cstring, (handshake.len + 1).csize_t, ENetPacketFlag.Reliable.cuint)
-      discard enet_peer_send(slippi.peer, 0.cuchar, packet)
+  if (enet_host_service(slippi.host, event.addr, 5000) > 0 and event.`type` == ENetEventType.Connect):
+    echo "Slippi stream connected."
+    let packet = enet_packet_create(handshake.cstring, (handshake.len + 1).csize_t, ENetPacketFlag.Reliable.cuint)
+    discard enet_peer_send(slippi.peer, 0.cuchar, packet)
 
-      discard enet_host_service(slippi.host, event.addr, 5000)
+    discard enet_host_service(slippi.host, event.addr, 5000)
 
-      if event.`type` == ENetEventType.Receive:
-        let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
-        enet_packet_destroy(event.packet)
+    if event.`type` == ENetEventType.Receive:
+      let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
+      enet_packet_destroy(event.packet)
 
-        slippi.isConnected = true
-        slippi.nickName = packetData["nick"].getStr
-        slippi.dolphinVersion = packetData["version"].getStr
-        slippi.cursor = packetData["cursor"].getInt
+      slippi.isConnected = true
+      slippi.nickName = packetData["nick"].getStr
+      slippi.dolphinVersion = packetData["version"].getStr
+      slippi.cursor = packetData["cursor"].getInt
 
-      return
+    return
 
-  echo "Connection with Dolphin failed."
+  echo "Slippi stream connection failed."
   enet_peer_reset(slippi.peer)
 
-proc addFrameSubscriber*(slippi: var SlippiStream, subscriber: proc(gameState: MeleeGameState)) =
+proc disconnect*(slippi: var SlippiStream) =
+  enet_peer_disconnect(slippi.peer, 0)
+
+proc addFrameSubscriber*(slippi: var SlippiStream, subscriber: proc(gameState: GameState)) =
   slippi.frameSubscribers.add(subscriber)
 
 proc shiftPayloadToNextEvent(slippi: var SlippiStream) =
@@ -108,7 +111,7 @@ proc readEventPayloads(slippi: var SlippiStream) =
   slippi.currentPayload = slippi.currentPayload[(payloadSize + 1).int..<slippi.currentPayload.len]
 
 proc readGameStart(slippi: var SlippiStream) =
-  slippi.gameState = MeleeGameState()
+  slippi.gameState = GameState()
 
   let
     versionMajor = readUint8(slippi.currentPayload, 0x1)
@@ -122,14 +125,14 @@ proc readGameStart(slippi: var SlippiStream) =
     slippi.gameState.followerStates[playerIndex].fieldName = value
 
   for playerIndex in 0..<4:
-    setPlayerAndFollowerStateField(playerKind, MeleePlayerKind(readUint8(slippi.currentPayload, 0x66 + (0x24 * playerIndex))))
+    setPlayerAndFollowerStateField(playerKind, PlayerKind(readUint8(slippi.currentPayload, 0x66 + (0x24 * playerIndex))))
     setPlayerAndFollowerStateField(costumeId, readUint8(slippi.currentPayload, 0x68 + (0x24 * playerIndex)).int)
     setPlayerAndFollowerStateField(cpuLevel, readUint8(slippi.currentPayload, 0x74 + (0x24 * playerIndex)).int)
 
   slippi.shiftPayloadToNextEvent()
 
 proc readFrameStart(slippi: var SlippiStream) =
-  slippi.gameState.frameNumber = readInt32(slippi.currentPayload, 0x1).int
+  slippi.gameState.frameCount = readInt32(slippi.currentPayload, 0x1).int
   slippi.gameState.randomSeed = readUint32(slippi.currentPayload, 0x5)
   slippi.shiftPayloadToNextEvent()
 
@@ -141,18 +144,19 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
   template readPlayerState(state: untyped): untyped =
     state.playerIndex = playerIndex
     state.isFollower = isFollower
-    state.character = MeleeCharacter(readUint8(slippi.currentPayload, 0x7))
-    state.actionState = MeleeActionState(readUint16(slippi.currentPayload, 0x8))
+    state.frameCount = readInt32(slippi.currentPayload, 0x1)
+    state.character = Character(readUint8(slippi.currentPayload, 0x7))
+    state.actionState = ActionState(readUint16(slippi.currentPayload, 0x8))
     state.xPosition = readFloat32(slippi.currentPayload, 0xa)
     state.yPosition = readFloat32(slippi.currentPayload, 0xe)
     state.isFacingRight = readFloat32(slippi.currentPayload, 0x12) >= 0.0
     state.percent = readFloat32(slippi.currentPayload, 0x16)
     state.shieldSize = readFloat32(slippi.currentPayload, 0x1a)
-    state.lastHittingAttack = MeleeAttack(readUint8(slippi.currentPayload, 0x1e))
+    state.lastHittingAttack = Attack(readUint8(slippi.currentPayload, 0x1e))
     state.currentComboCount = readUint8(slippi.currentPayload, 0x1f).int
     state.lastHitBy = readUint8(slippi.currentPayload, 0x20).int
     state.stocksRemaining = readUint8(slippi.currentPayload, 0x21).int
-    state.actionStateFrameCounter = readFloat32(slippi.currentPayload, 0x22)
+    state.actionFrame = readFloat32(slippi.currentPayload, 0x22)
     state.currentComboCount = readUint8(slippi.currentPayload, 0x1f).int
 
     # State bit flags:
@@ -179,8 +183,8 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
     state.isAirborne = readUint8(slippi.currentPayload, 0x2f).bool
     state.lastGroundId = readUint16(slippi.currentPayload, 0x30).int
     state.jumpsRemaining = readUint8(slippi.currentPayload, 0x32).int
-    state.lCancelStatus = MeleeLCancelStatus(readUint8(slippi.currentPayload, 0x33))
-    state.hurtboxCollisionState = MeleeHurtboxCollisionState(readUint8(slippi.currentPayload, 0x34))
+    state.lCancelStatus = LCancelStatus(readUint8(slippi.currentPayload, 0x33))
+    state.hurtboxCollisionState = HurtboxCollisionState(readUint8(slippi.currentPayload, 0x34))
     state.selfInducedAirXSpeed = readFloat32(slippi.currentPayload, 0x35)
     state.selfInducedYSpeed = readFloat32(slippi.currentPayload, 0x39)
     state.attackBasedXSpeed = readFloat32(slippi.currentPayload, 0x3d)
@@ -195,23 +199,20 @@ proc readPostFrameUpdate(slippi: var SlippiStream) =
 
   slippi.shiftPayloadToNextEvent()
 
-  for subscriber in slippi.frameSubscribers:
-    subscriber(slippi.gameState)
-
 proc readGameEnd(slippi: var SlippiStream) =
-  slippi.gameState.gameEndMethod = some(MeleeGameEndMethod(readUint8(slippi.currentPayload, 0x1)))
+  slippi.gameState.gameEndMethod = some(GameEndMethod(readUint8(slippi.currentPayload, 0x1)))
   slippi.gameState.lrasInitiator = readInt8(slippi.currentPayload, 0x2).int
   slippi.shiftPayloadToNextEvent()
 
 proc readFrameBookend(slippi: var SlippiStream) =
-  #for subscriber in slippi.frameSubscribers:
-  #  subscriber(slippi.gameState)
+  for subscriber in slippi.frameSubscribers:
+    subscriber(slippi.gameState)
 
   slippi.shiftPayloadToNextEvent()
 
 proc poll*(slippi: var SlippiStream) =
   var event: ENetEvent
-  discard enet_host_service(slippi.host, event.addr, 0)
+  discard enet_host_service(slippi.host, event.addr, 1000)
 
   if event.`type` == ENetEventType.Receive:
     let packetData = parseJson(($event.packet.data)[0..<event.packet.dataLength])
@@ -234,14 +235,23 @@ proc poll*(slippi: var SlippiStream) =
         of CommandKind.FrameBookend: slippi.readFrameBookend()
         of CommandKind.GeckoList: slippi.shiftPayloadToNextEvent()
 
+proc skipToRealTime*(slippi: var SlippiStream) =
+  while true:
+    let prePollTime = cpuTime()
+    slippi.poll()
+    if cpuTime() - prePollTime > 0.01:
+      return
+
 
 when isMainModule:
   var slippi = initSlippiStream()
 
   slippi.connect()
+  slippi.skipToRealTime()
+  echo "Skipped to realtime."
 
-  proc onFrameEnd(gameState: MeleeGameState) =
-    echo gameState.frameNumber
+  proc onFrameEnd(gameState: GameState) =
+    echo gameState.playerStates[0].isAirborne
 
   slippi.addFrameSubscriber(onFrameEnd)
 

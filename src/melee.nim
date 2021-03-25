@@ -2,7 +2,7 @@ import std/options
 
 
 type
-  MeleeCharacter* {.pure.} = enum
+  Character* {.pure.} = enum
     Mario = 0x00,
     Fox = 0x01,
     CaptainFalcon = 0x02,
@@ -36,7 +36,7 @@ type
     SandBag = 0x20,
     UnknownCharacter = 0xff,
 
-  MeleeActionState* {.pure.} = enum
+  ActionState* {.pure.} = enum
     DeadDown = 0x0,
     DeadLeft = 0x1,
     DeadRight = 0x2,
@@ -422,7 +422,7 @@ type
     ThrownKirbySpitSShot = 0x17e,
     Unknown = 0xffff,
 
-  MeleeAttack* {.pure.} = enum
+  Attack* {.pure.} = enum
     NotAttack = 0x0,
     NonStaling = 0x1,
     Jab1 = 0x2,
@@ -518,41 +518,42 @@ type
     SuperScopeCharged = 0x5c,
     Hammer = 0x5d,
 
-  MeleePlayerKind* {.pure.} = enum
+  PlayerKind* {.pure.} = enum
     Human = 0,
     Cpu = 1,
     Demo = 2,
     Empty = 3,
 
-  MeleeLCancelStatus* {.pure.} = enum
+  LCancelStatus* {.pure.} = enum
     None = 0,
     Successful = 1,
     Unsuccessful = 2,
 
-  MeleeHurtboxCollisionState* {.pure.} = enum
+  HurtboxCollisionState* {.pure.} = enum
     Vulnerable = 0,
     Invulnerable = 1,
     Intangible = 2,
 
-  MeleeGameEndMethod* {.pure.} = enum
+  GameEndMethod* {.pure.} = enum
     Timeout = 1,
     GameEnd = 2,
     NoContest = 7,
 
-  MeleePlayerState* = object
+  PlayerState* = object
+    frameCount*: int
     playerIndex*: int
-    playerKind*: MeleePlayerKind
+    playerKind*: PlayerKind
     cpuLevel*: int
     isFollower*: bool
     costumeId*: int
-    character*: MeleeCharacter
-    actionState*: MeleeActionState
+    character*: Character
+    actionState*: ActionState
     xPosition*: float
     yPosition*: float
     isFacingRight*: bool
     percent*: float
     shieldSize*: float
-    lastHittingAttack*: MeleeAttack
+    lastHittingAttack*: Attack
     currentComboCount*: int
     reflectIsActive*: bool
     isInvincible*: bool
@@ -567,13 +568,13 @@ type
     isOffscreen*: bool
     lastHitBy*: int
     stocksRemaining*: int
-    actionStateFrameCounter*: float
+    actionFrame*: float
     hitstunRemaining*: float
     isAirborne*: bool
     lastGroundId*: int
     jumpsRemaining*: int
-    lCancelStatus*: MeleeLCancelStatus
-    hurtboxCollisionState*: MeleeHurtboxCollisionState
+    lCancelStatus*: LCancelStatus
+    hurtboxCollisionState*: HurtboxCollisionState
     selfInducedAirXSpeed*: float
     selfInducedYSpeed*: float
     attackBasedXSpeed*: float
@@ -581,10 +582,45 @@ type
     selfInducedGroundXSpeed*: float
     hitlagFramesRemaining*: float
 
-  MeleeGameState* = object
-    frameNumber*: int
+  GameState* = object
+    frameCount*: int
     randomSeed*: uint32
-    gameEndMethod*: Option[MeleeGameEndMethod]
+    gameEndMethod*: Option[GameEndMethod]
     lrasInitiator*: int
-    playerStates*: array[4, MeleePlayerState]
-    followerStates*: array[4, MeleePlayerState]
+    playerStates*: array[4, PlayerState]
+    followerStates*: array[4, PlayerState]
+
+proc jumpSquatFrames*(character: Character): int =
+  case character:
+  of Character.Mario: 4
+  of Character.Fox: 3
+  of Character.CaptainFalcon: 4
+  of Character.DonkeyKong: 5
+  of Character.Kirby: 3
+  of Character.Bowser: 8
+  of Character.Link: 6
+  of Character.Sheik: 3
+  of Character.Ness: 4
+  of Character.Peach: 5
+  of Character.Popo: 3
+  of Character.Nana: 3
+  of Character.Pikachu: 3
+  of Character.Samus: 3
+  of Character.Yoshi: 5
+  of Character.Jigglypuff: 5
+  of Character.Mewtwo: 5
+  of Character.Luigi: 4
+  of Character.Marth: 4
+  of Character.Zelda: 6
+  of Character.YoungLink: 4
+  of Character.DoctorMario: 4
+  of Character.Falco: 5
+  of Character.Pichu: 3
+  of Character.MrGameAndWatch: 4
+  of Character.Ganondorf: 6
+  of Character.Roy: 5
+  of Character.WireFrameMale: 6
+  of Character.WireFrameFemale: 6
+  of Character.GigaBowser: 6
+  of Character.SandBag: 4
+  of Character.UnknownCharacter: 4
