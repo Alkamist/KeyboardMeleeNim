@@ -5,6 +5,7 @@ import asyncdispatch
 from os import fileExists
 import kbdinput
 import vjoy
+import slippi
 import digitalmeleecontroller/digitalmeleecontroller
 import dolphincontroller
 
@@ -117,16 +118,22 @@ var
   vJoyDevice: VJoyDevice
   controller = initDigitalMeleeController()
   dolphinCtrl = initDolphinController(1)
+  stream = initSlippiStream()
 
 if useVJoy:
   vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
 
-controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
-controller.useCStickTilting = configJson["useCStickTilting"].getBool
-controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
+#controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
+#controller.useCStickTilting = configJson["useCStickTilting"].getBool
+#controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
+
+proc onNewFrame(gameState: GameState) =
+  controller.onNewFrame(gameState)
 
 proc main() {.async.} =
   while true:
+    discard stream.poll()
+
     onOffToggle = keyIsPressed(onOffToggleKey)
     if onOffToggle and not onOffTogglePrevious:
       isEnabled = not isEnabled
@@ -168,6 +175,10 @@ proc main() {.async.} =
     onOffTogglePrevious = onOffToggle
 
     await sleepAsync(1)
+
+stream.connect()
+stream.skipToRealTime()
+stream.addFrameSubscriber(onNewFrame)
 
 setAllKeysBlocked(true)
 

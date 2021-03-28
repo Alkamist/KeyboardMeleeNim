@@ -1,4 +1,5 @@
 import std/options
+import gccstate
 
 
 type
@@ -539,7 +540,13 @@ type
     GameEnd = 2,
     NoContest = 7,
 
+  GameNetworkKind* {.pure.} = enum
+    Local = 0x2,
+    Online = 0x8,
+
   PlayerState* = object
+    gccState*: GCCState
+    slippiName*: string
     frameCount*: int
     playerIndex*: int
     playerKind*: PlayerKind
@@ -585,6 +592,8 @@ type
   GameState* = object
     frameCount*: int
     randomSeed*: uint32
+    isOnline*: bool
+    isInProgress*: bool
     gameEndMethod*: Option[GameEndMethod]
     lrasInitiator*: int
     playerStates*: array[4, PlayerState]

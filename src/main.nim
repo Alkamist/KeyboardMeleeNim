@@ -5,7 +5,6 @@ import asyncdispatch
 from os import fileExists
 import kbdinput
 import vjoy
-import slippi
 import digitalmeleecontroller/digitalmeleecontroller
 import dolphincontroller
 
@@ -43,7 +42,7 @@ configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
 configJson.insertIfMissing("useCStickTilting", true)
-configJson.insertIfMissing("useExtraBButtons", true)
+configJson.insertIfMissing("useExtraBButtons", false)
 configJson.insertIfMissing("onOffToggleKey", Key.Key8)
 configJson.insertIfMissing("keyBinds", {
   $Action.Left: [Key.A],
@@ -60,12 +59,12 @@ configJson.insertIfMissing("keyBinds", {
   $Action.Start: [Key.Key5],
   $Action.A: [Key.RightWindows],
   $Action.B: [Key.RightAlt],
-  $Action.BUp: [Key.Period],
-  $Action.BSide: [Key.Backspace],
-  $Action.Z: [Key.Equals],
-  $Action.ShortHop: [Key.LeftBracket, Key.Minus],
-  $Action.FullHop: [Key.BackSlash],
-  $Action.Shield: [Key.RightBracket],
+  $Action.BUp: [],
+  $Action.BSide: [],
+  $Action.Z: [Key.RightBracket],
+  $Action.ShortHop: [Key.LeftBracket],
+  $Action.FullHop: [Key.Minus],
+  $Action.Shield: [Key.BackSlash],
   $Action.AirDodge: [Key.Semicolon],
   $Action.ChargeSmash: [Key.Space],
   $Action.DLeft: [Key.V],
@@ -118,22 +117,16 @@ var
   vJoyDevice: VJoyDevice
   controller = initDigitalMeleeController()
   dolphinCtrl = initDolphinController(1)
-  stream = initSlippiStream()
 
 if useVJoy:
   vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
 
-#controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
-#controller.useCStickTilting = configJson["useCStickTilting"].getBool
-#controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
-
-proc onNewFrame(gameState: GameState) =
-  controller.onNewFrame(gameState)
+controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
+controller.useCStickTilting = configJson["useCStickTilting"].getBool
+controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
 
 proc main() {.async.} =
   while true:
-    discard stream.poll()
-
     onOffToggle = keyIsPressed(onOffToggleKey)
     if onOffToggle and not onOffTogglePrevious:
       isEnabled = not isEnabled
@@ -175,10 +168,6 @@ proc main() {.async.} =
     onOffTogglePrevious = onOffToggle
 
     await sleepAsync(1)
-
-stream.connect()
-stream.skipToRealTime()
-stream.addFrameSubscriber(onNewFrame)
 
 setAllKeysBlocked(true)
 
