@@ -231,7 +231,8 @@ proc handleTiltModifier(controller: var DigitalMeleeController) =
 proc handleShieldTilt(controller: var DigitalMeleeController) =
   controller.shieldTilter.update(controller.state.xAxis,
                                  controller.state.yAxis,
-                                 controller.actions[Action.Shield].isPressed,
+                                 controller.actions[Action.Shield].isPressed or
+                                 controller.actions[Action.Z].isPressed,
                                  controller.actions[Action.Shield].justPressed,
                                  false)
 
