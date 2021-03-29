@@ -151,7 +151,7 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
     controller.state.yAxis.value = controller.state.yAxis.direction * controller.xModY
 
 proc handleAStick(controller: var DigitalMeleeController) =
-  if controller.useCStickTilting and not controller.actions[Action.YMod].isPressed:
+  if controller.useCStickTilting and not controller.actions[Action.Shield].isPressed:
     let aStickModifier = controller.actions[Action.Tilt].isPressed
     controller.aStick.update(controller.state.xAxis,
                              controller.state.yAxis,
