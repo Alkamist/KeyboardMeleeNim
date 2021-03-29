@@ -17,8 +17,8 @@ type
 
 proc initAirDodgeLogic*(): AirDodgeLogic =
   result.airDodgeTime = cpuTime()
-  result.xLevelLong = 0.925
-  result.yLevelLong = -0.35
+  result.xLevelLong = 0.9
+  result.yLevelLong = -0.4125
   result.xLevelMedium = 0.8125
   result.yLevelMedium = -0.575
   result.xLevelShort = 0.5

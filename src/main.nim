@@ -72,7 +72,7 @@ configJson.insertIfMissing("keyBinds", {
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
   $Action.ToggleLightShield: [Key.Space],
-  $Action.InvertXAxis: [Key.Enter],
+  $Action.InvertXAxis: [],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.A: 1,
@@ -100,8 +100,6 @@ configJson.insertIfMissing("vJoySliderBinds", {
 
 writeFile("config.json", pretty(configJson))
 
-startVJoy(configJson["vJoyDllPath"].getStr)
-
 let
   onOffToggleKey = parseEnum[Key](configJson["onOffToggleKey"].getStr)
   keyBinds = parseKeyBindsJson(configJson["keyBinds"])
@@ -116,10 +114,13 @@ var
   onOffTogglePrevious = false
   vJoyDevice: VJoyDevice
   controller = initDigitalMeleeController()
-  dolphinCtrl = initDolphinController(1)
+  dolphinCtrl: DolphinController
 
 if useVJoy:
+  startVJoy(configJson["vJoyDllPath"].getStr)
   vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
+else:
+  dolphinCtrl = initDolphinController(1)
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool
