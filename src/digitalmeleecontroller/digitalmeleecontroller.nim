@@ -42,7 +42,7 @@ type
     DDown,
     DUp,
     ChargeSmash,
-    InvertXAxis,
+    InvertYAxis,
 
   DigitalMeleeController* = object
     useExtraBButtons*: bool
@@ -114,8 +114,8 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
     controller.state.xAxis.value = controller.backdashOutOfCrouchFix.xAxisOutput
 
 proc handleXAxisInversion(controller: var DigitalMeleeController) =
-  if controller.actions[Action.InvertXAxis].isPressed:
-    controller.state.xAxis.value = -controller.state.xAxis.value
+  if controller.actions[Action.InvertYAxis].isPressed:
+    controller.state.yAxis.value = -controller.state.yAxis.value
 
 proc handleChargedSmashes(controller: var DigitalMeleeController) =
   let cIsPressed = controller.actions[Action.CLeft].isPressed or

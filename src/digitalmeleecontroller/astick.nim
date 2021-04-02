@@ -100,6 +100,10 @@ proc update*(stick: var AStick;
     if shouldBiasY:
       yBias = 0.5 * yAxis.direction
 
-    stick.yAxisOutput = stick.outputYAxis.value * 0.6 + yBias;
+    var yMagnitude = 0.6
+    if yAxis.value < 0.6:
+      yMagnitude = 1.0
+
+    stick.yAxisOutput = stick.outputYAxis.value * yMagnitude + yBias
 
   stick.outputState = stick.outputButton.isPressed
