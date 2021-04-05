@@ -69,8 +69,8 @@ type
     chargeSmash: bool
     isLightShielding: bool
     isHoldingCDown: bool
-    useAForVertical: bool
-    aVerticalTime: float
+    useAForC: bool
+    aForCTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.jumpLogic = initJumpLogic()
@@ -101,8 +101,8 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
   let enableCStick = (not controller.actions[Action.Tilt].isPressed) or
                      controller.actions[Action.Shield].isPressed
 
-  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick,
-                                             controller.actions[Action.CRight].isPressed and enableCStick)
+  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick and not controller.isHoldingCDown,
+                                             controller.actions[Action.CRight].isPressed and enableCStick and not controller.isHoldingCDown)
   controller.state.cYAxis.setValueFromStates((controller.actions[Action.CDown].isPressed and enableCStick) or controller.isHoldingCDown,
                                              controller.actions[Action.CUp].isPressed and enableCStick and not controller.isHoldingCDown)
 
@@ -280,9 +280,11 @@ proc handleHoldCDown(controller: var DigitalMeleeController) =
 
     if not controller.actions[Action.Tilt].isPressed and
        (controller.actions[Action.CUp].justPressed or
-        controller.actions[Action.CDown].justPressed):
-      controller.useAForVertical = true
-      controller.aVerticalTime = cpuTime()
+        controller.actions[Action.CDown].justPressed or
+        controller.actions[Action.CRight].justPressed or
+        controller.actions[Action.CLeft].justPressed):
+      controller.useAForC = true
+      controller.aForCTime = cpuTime()
 
 proc setActionState*(controller: var DigitalMeleeController, action: Action, state: bool) =
   controller.actions[action].isPressed = state
@@ -303,18 +305,18 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleJumpLogic()
   controller.handleShield()
 
-  if controller.useAForVertical:
+  if controller.useAForC:
     controller.state.aButton.isPressed = true
     controller.state.xAxis.value = 0.0
+    controller.state.yAxis.value = 0.0
 
-    if controller.actions[Action.CUp].isPressed:
-      controller.state.yAxis.value = 1.0
+    if controller.actions[Action.CUp].isPressed: controller.state.yAxis.value = 1.0
+    elif controller.actions[Action.CDown].isPressed: controller.state.yAxis.value = -1.0
+    if controller.actions[Action.CRight].isPressed: controller.state.xAxis.value = 1.0
+    elif controller.actions[Action.CLeft].isPressed: controller.state.xAxis.value = -1.0
 
-    elif controller.actions[Action.CDown].isPressed:
-      controller.state.yAxis.value = -1.0
-
-    if cpuTime() - controller.aVerticalTime >= 0.017:
-      controller.useAForVertical = false
+    if cpuTime() - controller.aForCTime >= 0.017:
+      controller.useAForC = false
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed
