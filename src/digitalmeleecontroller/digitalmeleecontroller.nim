@@ -69,8 +69,8 @@ type
     chargeSmash: bool
     isLightShielding: bool
     isHoldingCDown: bool
-    delayCVertical: bool
-    releaseCDownTime: float
+    useAForVertical: bool
+    aVerticalTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.jumpLogic = initJumpLogic()
@@ -101,8 +101,10 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
   let enableCStick = (not controller.actions[Action.Tilt].isPressed) or
                      controller.actions[Action.Shield].isPressed
 
-  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick, controller.actions[Action.CRight].isPressed and enableCStick)
-  controller.state.cYAxis.setValueFromStates(controller.actions[Action.CDown].isPressed and enableCStick or controller.isHoldingCDown, controller.actions[Action.CUp].isPressed and enableCStick)
+  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick,
+                                             controller.actions[Action.CRight].isPressed and enableCStick)
+  controller.state.cYAxis.setValueFromStates((controller.actions[Action.CDown].isPressed and enableCStick) or controller.isHoldingCDown,
+                                             controller.actions[Action.CUp].isPressed and enableCStick and not controller.isHoldingCDown)
 
 proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
   controller.backdashOutOfCrouchFix.update(controller.state.xAxis,
@@ -279,9 +281,8 @@ proc handleHoldCDown(controller: var DigitalMeleeController) =
     if not controller.actions[Action.Tilt].isPressed and
        (controller.actions[Action.CUp].justPressed or
         controller.actions[Action.CDown].justPressed):
-      controller.isHoldingCDown = false
-      controller.delayCVertical = true
-      controller.releaseCDownTime = cpuTime()
+      controller.useAForVertical = true
+      controller.aVerticalTime = cpuTime()
 
 proc setActionState*(controller: var DigitalMeleeController, action: Action, state: bool) =
   controller.actions[action].isPressed = state
@@ -289,12 +290,6 @@ proc setActionState*(controller: var DigitalMeleeController, action: Action, sta
 proc update*(controller: var DigitalMeleeController) =
   controller.handleHoldCDown()
   controller.updateAxesFromDirections()
-
-  if controller.delayCVertical:
-    controller.state.cYAxis.value = 0.0
-    if cpuTime() - controller.releaseCDownTime >= 0.017:
-      controller.delayCVertical = false
-
   controller.handleYAxisInversion()
   controller.handleBackdashOutOfCrouchFix()
   controller.handleModifierAngles()
@@ -307,6 +302,19 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleChargedSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
+
+  if controller.useAForVertical:
+    controller.state.aButton.isPressed = true
+    controller.state.xAxis.value = 0.0
+
+    if controller.actions[Action.CUp].isPressed:
+      controller.state.yAxis.value = 1.0
+
+    elif controller.actions[Action.CDown].isPressed:
+      controller.state.yAxis.value = -1.0
+
+    if cpuTime() - controller.aVerticalTime >= 0.017:
+      controller.useAForVertical = false
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed
