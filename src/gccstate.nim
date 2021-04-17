@@ -53,6 +53,26 @@ type
     lSlider*: AnalogSlider
     rSlider*: AnalogSlider
 
+proc initGCCState*(): GCCState =
+  result.xAxis = initAnalogAxis()
+  result.yAxis = initAnalogAxis()
+  result.cXAxis = initAnalogAxis()
+  result.cYAxis = initAnalogAxis()
+  result.aButton = initButton()
+  result.bButton = initButton()
+  result.xButton = initButton()
+  result.yButton = initButton()
+  result.zButton = initButton()
+  result.lButton = initButton()
+  result.rButton = initButton()
+  result.startButton = initButton()
+  result.dLeftButton = initButton()
+  result.dRightButton = initButton()
+  result.dDownButton = initButton()
+  result.dUpButton = initButton()
+  result.lSlider = initAnalogSlider()
+  result.rSlider = initAnalogSlider()
+
 proc justChanged*(state: GCCState): bool =
   for field in state.fields:
     if field.justChanged():

@@ -3,6 +3,9 @@ type
     isPressed*: bool
     wasPressed*: bool
 
+proc initButton*(): Button =
+  result
+
 proc justChanged*(button: Button): bool =
   button.isPressed != button.wasPressed
 

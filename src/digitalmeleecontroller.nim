@@ -44,7 +44,6 @@ type
     useCStickTilting*: bool
     actions*: array[Action, Button]
     state*: GCCState
-    shieldTilter: StickTilter
     chargeSmash: bool
     isLightShielding: bool
     delayBackdash: bool
@@ -64,45 +63,8 @@ type
     isRightTilting: bool
     isDoingNeutralA: bool
 
-proc bipolarMax(value, magnitude: float): float =
-  if value > 0.0: value.max(magnitude)
-  elif value < 0.0: value.min(-magnitude)
-  else: 0.0
-
-proc scaleAxes(axisA, axisB: var AnalogAxis; scaleValue: float) =
-  let axisAMagnitude = axisA.value.abs
-  if axisAMagnitude > scaleValue:
-    let scaleFactor = scaleValue / axisAMagnitude
-    axisA.value = axisA.direction * scaleValue
-    axisB.value = bipolarMax(axisB.value * scaleFactor, axisB.dead_zone)
-
-proc setMagnitude(xAxis, yAxis: var AnalogAxis; scaleValue: float) =
-  scaleAxes(xAxis, yAxis, scaleValue)
-  scaleAxes(yAxis, xAxis, scaleValue)
-
-proc initStickTilter*(tiltLevel = 1.0): StickTilter =
-  result.tiltTime = cpuTime()
-  result.tiltLevel = tiltLevel
-
-proc update*(tilter: var StickTilter;
-             xAxis, yAxis: var AnalogAxis;
-             allowTilt, resetTilt, holdTilt: bool) =
-  let resetTiltConditions = xAxis.justActivated or xAxis.justCrossedCenter or
-                            yAxis.justActivated or yAxis.justCrossedCenter or
-                            resetTilt
-
-  if allowTilt and resetTiltConditions:
-    tilter.tiltTime = cpuTime()
-    tilter.isTilting = true
-
-  if tilter.isTilting or (allowTilt and holdTilt):
-    setMagnitude(xAxis, yAxis, tilter.tiltLevel)
-
-    if cpuTime() - tilter.tiltTime >= 0.117:
-      tilter.isTilting = false
-
 proc initDigitalMeleeController*(): DigitalMeleeController =
-  result.shieldTilter = initStickTilter(0.6625)
+  result.state = initGCCState()
   result.useShortHopMacro = true
   result.useCStickTilting = true
   result.backdashTime = cpuTime()
@@ -326,12 +288,8 @@ proc handleAirDodgeLogic(controller: var DigitalMeleeController) =
       controller.isAirDodging = false
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
-  controller.shieldTilter.update(controller.state.xAxis,
-                                 controller.state.yAxis,
-                                 controller.actions[Action.Shield].isPressed or
-                                 controller.actions[Action.Z].isPressed,
-                                 controller.actions[Action.Shield].justPressed,
-                                 false)
+  if controller.actions[Action.Shield].isPressed:
+    setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
 
 proc handleShield(controller: var DigitalMeleeController) =
   # Allow for a special button to toggle light shield while the shield button is held.
@@ -355,7 +313,6 @@ proc setActionState*(controller: var DigitalMeleeController, action: Action, sta
 
 proc update*(controller: var DigitalMeleeController) =
   controller.updateAxesFromDirections()
-  controller.handleShieldTilt()
   controller.handleBackdashOutOfCrouchFix()
   controller.handleModifierAngles()
   controller.handleCStickTilting()
@@ -365,6 +322,7 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleChargedSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
+  controller.handleShieldTilt()
 
   controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed

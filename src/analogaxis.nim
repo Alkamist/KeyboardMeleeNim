@@ -1,20 +1,5 @@
 import std/math
 
-proc withMagnitude*(xValue, yValue, magnitude: float): (float, float) =
-  let currentMagnitude = sqrt(pow(xValue, 2) + pow(yValue, 2))
-  if currentMagnitude > 0.0:
-    let scaleFactor = magnitude / currentMagnitude
-    (xValue * scaleFactor, yValue * scaleFactor)
-  else:
-    (magnitude, 0.0)
-
-proc circularGate*(xValue, yValue, magnitude: float): (float, float) =
-  let currentMagnitude = sqrt(pow(xValue, 2) + pow(yValue, 2))
-  if currentMagnitude > magnitude:
-    withMagnitude(xValue, yValue, magnitude)
-  else:
-    (xValue, yValue)
-
 type
   AnalogAxis* = object
     value*: float
@@ -71,3 +56,19 @@ proc update*(axis: var AnalogAxis) =
 proc setAngle*(xAxis, yAxis: var AnalogAxis; angle: float) =
   xAxis.value = angle.cos
   yAxis.value = angle.sin
+
+proc bipolarMax(value, magnitude: float): float =
+  if value > 0.0: value.max(magnitude)
+  elif value < 0.0: value.min(-magnitude)
+  else: 0.0
+
+proc scaleAxes(axisA, axisB: var AnalogAxis; scaleValue: float) =
+  let axisAMagnitude = axisA.value.abs
+  if axisAMagnitude > scaleValue:
+    let scaleFactor = scaleValue / axisAMagnitude
+    axisA.value = axisA.direction * scaleValue
+    axisB.value = bipolarMax(axisB.value * scaleFactor, axisB.deadZone)
+
+proc setMagnitude*(xAxis, yAxis: var AnalogAxis; scaleValue: float) =
+  scaleAxes(xAxis, yAxis, scaleValue)
+  scaleAxes(yAxis, xAxis, scaleValue)
