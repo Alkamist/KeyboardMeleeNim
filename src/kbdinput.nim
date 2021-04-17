@@ -1,8 +1,8 @@
-import tables
-import sequtils
-import asyncdispatch
-import macros
-
+import
+  std/tables,
+  std/sequtils,
+  std/asyncdispatch,
+  std/macros
 
 macro winapi(x: untyped): untyped =
   when not defined(noDiscardableApi):

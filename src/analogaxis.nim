@@ -1,6 +1,5 @@
 import std/math
 
-
 proc withMagnitude*(xValue, yValue, magnitude: float): (float, float) =
   let currentMagnitude = sqrt(pow(xValue, 2) + pow(yValue, 2))
   if currentMagnitude > 0.0:

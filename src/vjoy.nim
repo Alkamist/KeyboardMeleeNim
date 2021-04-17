@@ -1,5 +1,4 @@
-import dynlib
-
+import std/dynlib
 
 type
   VJoyAxis* {.pure.} = enum

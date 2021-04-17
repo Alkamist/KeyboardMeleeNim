@@ -1,13 +1,13 @@
-import json
-import tables
-import strutils
-import asyncdispatch
-from os import fileExists
-import kbdinput
-import vjoy
-import digitalmeleecontroller/digitalmeleecontroller
-import dolphincontroller
-
+import
+  std/json,
+  std/tables,
+  std/strutils,
+  std/asyncdispatch,
+  std/os,
+  kbdinput,
+  vjoy,
+  digitalmeleecontroller,
+  dolphincontroller
 
 proc parseKeyBindsJson(inputBinds: JsonNode): Table[Action, seq[Key]] =
   for action, bindList in inputBinds.pairs:
@@ -63,12 +63,12 @@ configJson.insertIfMissing("keyBinds", {
   $Action.FullHop: [Key.BackSlash],
   $Action.Shield: [Key.CapsLock],
   $Action.AirDodge: [Key.Semicolon],
-  $Action.ChargeSmash: [Key.Space],
+  $Action.ChargeSmash: [],
   $Action.DLeft: [Key.V],
   $Action.DRight: [Key.N],
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
-  $Action.ToggleLightShield: [Key.Space],
+  $Action.ToggleLightShield: [],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.A: 1,
@@ -116,7 +116,7 @@ if useVJoy:
   startVJoy(configJson["vJoyDllPath"].getStr)
   vJoyDevice = initVJoyDevice(configJson["vJoyDeviceId"].getInt.cuint)
 else:
-  dolphinCtrl = initDolphinController(1)
+  dolphinCtrl = initDolphinController(1, "")
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool

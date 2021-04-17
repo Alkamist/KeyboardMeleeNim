@@ -1,11 +1,12 @@
-import button
-import analogaxis
-import analogslider
+import
+  button,
+  analogaxis,
+  analogslider
 
-export button
-export analogaxis
-export analogslider
-
+export
+  button,
+  analogaxis,
+  analogslider
 
 type
   GCCButton* {.pure.} = enum

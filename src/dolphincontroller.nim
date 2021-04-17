@@ -1,97 +1,30 @@
-import std/macros
-import gccstate
+import
+  std/os,
+  systempipe,
+  gccstate
 
+proc getDolphinPipePath(portNumber: int, dolphinDirectory: string): string =
+  if defined(windows):
+    result = "\\\\.\\pipe\\"
 
-macro winapi(x: untyped): untyped =
-  when not defined(noDiscardableApi):
-    x.addPragma(newIdentNode("discardable"))
-  result = x
+  elif defined(linux):
+    if dirExists(dolphinDirectory & "/User/"):
+      result = dolphinDirectory & "/User/Pipes/"
+    else:
+      result = getHomeDir() & "/.config/SlippiOnline/Pipes"
 
-when defined(cpu64):
-  type ULONG_PTR = uint64
-when not defined(cpu64):
-  type ULONG_PTR = int32
+  elif defined(macosx):
+    result = dolphinDirectory & "/Contents/Resources/User/Pipes/"
 
-type
-  VOID = void
-  PVOID = pointer
-  LPVOID = pointer
-  LPCVOID = pointer
-  HANDLE = int
-  WINBOOL = int32
-  DWORD = int32
-  LPDWORD = ptr DWORD
-  WCHAR = uint16
-  LPCSTR = cstring
-  LPCWSTR = ptr WCHAR
-  SECURITY_ATTRIBUTES {.pure.} = object
-    nLength*: DWORD
-    lpSecurityDescriptor*: LPVOID
-    bInheritHandle*: WINBOOL
-  LPSECURITY_ATTRIBUTES = ptr SECURITY_ATTRIBUTES
-  OVERLAPPED_UNION1_STRUCT1 {.pure.} = object
-    Offset*: DWORD
-    OffsetHigh*: DWORD
-  OVERLAPPED_UNION1 {.pure, union.} = object
-    struct1*: OVERLAPPED_UNION1_STRUCT1
-    Pointer*: PVOID
-  OVERLAPPED {.pure.} = object
-    Internal*: ULONG_PTR
-    InternalHigh*: ULONG_PTR
-    union1*: OVERLAPPED_UNION1
-    hEvent*: HANDLE
-  LPOVERLAPPED = ptr OVERLAPPED
-
-const
-  GENERIC_WRITE = 0x40000000
-  OPEN_EXISTING = 3
-  INVALID_HANDLE_VALUE = HANDLE(-1)
-
-proc CreateFile(lpFileName: LPCSTR,
-                dwDesiredAccess: DWORD,
-                dwShareMode: DWORD,
-                lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
-                dwCreationDisposition: DWORD,
-                dwFlagsAndAttributes: DWORD,
-                hTemplateFile: HANDLE): HANDLE {.winapi, stdcall, dynlib: "kernel32", importc: "CreateFileA".}
-proc CreateFile(lpFileName: LPCWSTR,
-                dwDesiredAccess: DWORD,
-                dwShareMode: DWORD,
-                lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
-                dwCreationDisposition: DWORD,
-                dwFlagsAndAttributes: DWORD,
-                hTemplateFile: HANDLE): HANDLE {.winapi, stdcall, dynlib: "kernel32", importc: "CreateFileW".}
-proc WriteFile(hFile: HANDLE,
-               lpBuffer: LPCVOID,
-               nNumberOfBytesToWrite: DWORD,
-               lpNumberOfBytesWritten: LPDWORD,
-               lpOverlapped: LPOVERLAPPED): WINBOOL {.winapi, stdcall, dynlib: "kernel32", importc.}
-proc CloseHandle(hObject: HANDLE): WINBOOL {.winapi, stdcall, dynlib: "kernel32", importc.}
-
-type
-  Pipe = object
-    handle: HANDLE
-    bytesWritten: DWORD
-
-proc initPipe(directory: string): Pipe =
-  result.handle = CreateFile(directory.LPCSTR, GENERIC_WRITE, 0, nil, OPEN_EXISTING, 0, 0)
-  if result.handle == INVALID_HANDLE_VALUE:
-    echo "Could not connect to Dolphin pipe."
-    quit(QuitFailure)
-
-proc `=destroy`(pipe: var Pipe) =
-  CloseHandle(pipe.handle)
-
-proc write(pipe: var Pipe, output: string) =
-  WriteFile(pipe.handle, output.cstring, (output.len + 1).DWORD, pipe.bytesWritten.addr, nil)
+  result &= "slippibot" & $portNumber
 
 type
   DolphinController* = object
     state: GCCState
-    pipe: Pipe
+    pipe: SystemPipe
 
-proc initDolphinController*(pipeNumber: int): DolphinController =
-  result.pipe = initPipe("\\\\.\\pipe\\slippibot" & $pipeNumber)
+proc initDolphinController*(portNumber: int, dolphinDirectory: string): DolphinController =
+  result.pipe = initSystemPipe(getDolphinPipePath(portNumber, dolphinDirectory))
 
 proc setButton*(controller: var DolphinController, button: GCCButton, state: bool) =
   controller.state[button].isPressed = state
@@ -154,3 +87,18 @@ proc writeControllerState*(controller: var DolphinController) =
     controller.pipe.write(outputStr)
 
   controller.state.update()
+
+when isMainModule:
+  import times
+
+  var
+    controller = initDolphinController(1, dolphinDirectory="")
+    buttonChangeTime = cpuTime()
+    buttonState = true
+
+  while true:
+    if cpuTime() - buttonChangeTime > 0.5:
+      controller.setButton(GCCButton.A, buttonState)
+      controller.writeControllerState()
+      buttonState = not buttonState
+      buttonChangeTime = cpuTime()
