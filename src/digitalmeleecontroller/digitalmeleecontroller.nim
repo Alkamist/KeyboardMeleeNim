@@ -1,15 +1,14 @@
-import std/times
-import ../button
-import ../analogaxis
-import ../analogslider
-import ../gccstate
-import jumplogic
-import airdodgelogic
-import sticktilter
-import astick
-import bstick
-import backdashoutofcrouchfix
-import safegroundeddownb
+import
+  ../button,
+  ../analogaxis,
+  ../analogslider,
+  ../gccstate,
+  jumplogic,
+  airdodgelogic,
+  sticktilter,
+  astick,
+  backdashoutofcrouchfix,
+  safegroundeddownb
 
 export gccstate
 
@@ -31,8 +30,6 @@ type
     FullHop,
     A,
     B,
-    BUp,
-    BSide,
     Z,
     Shield,
     ToggleLightShield,
@@ -43,12 +40,8 @@ type
     DDown,
     DUp,
     ChargeSmash,
-    HoldCDown,
-    StopHoldingCDown,
-    InvertYAxis,
 
   DigitalMeleeController* = object
-    useExtraBButtons*: bool
     useShortHopMacro*: bool
     useCStickTilting*: bool
     xModX*: float
@@ -62,15 +55,10 @@ type
     tiltModifier: StickTilter
     shieldTilter: StickTilter
     aStick: AStick
-    bStick: BStick
     backdashOutOfCrouchFix: BackdashOutOfCrouchFix
     safeGroundedDownB: SafeGroundedDownB
-    previousDirectionIsRight: bool
     chargeSmash: bool
     isLightShielding: bool
-    isHoldingCDown: bool
-    useAForC: bool
-    aForCTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.jumpLogic = initJumpLogic()
@@ -78,15 +66,12 @@ proc initDigitalMeleeController*(): DigitalMeleeController =
   result.tiltModifier = initStickTilter(0.65)
   result.shieldTilter = initStickTilter(0.6625)
   result.aStick = initAStick()
-  result.bStick = initBStick()
   result.backdashOutOfCrouchFix = initBackdashOutOfCrouchFix()
   result.safeGroundedDownB = initSafeGroundedDownB()
-  result.previousDirectionIsRight = true
   result.xModX = 0.2875
   result.xModY = 0.95
   result.yModX = 0.95
   result.yModY = 0.2875
-  result.useExtraBButtons = true
   result.useShortHopMacro = true
   result.useCStickTilting = true
 
@@ -98,13 +83,14 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
   controller.state.xAxis.setValueFromStates(controller.actions[Action.Left].isPressed, controller.actions[Action.Right].isPressed)
   controller.state.yAxis.setValueFromStates(controller.actions[Action.Down].isPressed, controller.actions[Action.Up].isPressed)
 
-  let enableCStick = (not controller.actions[Action.Tilt].isPressed) or
-                     controller.actions[Action.Shield].isPressed
+  let enableCStick = controller.actions[Action.Shield].isPressed or
+                     not controller.useCStickTilting or
+                     not controller.actions[Action.Tilt].isPressed
 
-  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick and not controller.isHoldingCDown,
-                                             controller.actions[Action.CRight].isPressed and enableCStick and not controller.isHoldingCDown)
-  controller.state.cYAxis.setValueFromStates((controller.actions[Action.CDown].isPressed and enableCStick) or controller.isHoldingCDown,
-                                             controller.actions[Action.CUp].isPressed and enableCStick and not controller.isHoldingCDown)
+  controller.state.cXAxis.setValueFromStates(controller.actions[Action.CLeft].isPressed and enableCStick,
+                                             controller.actions[Action.CRight].isPressed and enableCStick)
+  controller.state.cYAxis.setValueFromStates((controller.actions[Action.CDown].isPressed and enableCStick),
+                                             controller.actions[Action.CUp].isPressed and enableCStick)
 
 proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
   controller.backdashOutOfCrouchFix.update(controller.state.xAxis,
@@ -120,14 +106,8 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
           controller.actions[Action.Z].isPressed or
           controller.actions[Action.A].isPressed or
           controller.actions[Action.B].isPressed or
-          controller.actions[Action.BSide].isPressed or
-          controller.actions[Action.BUp].isPressed or
           controller.actions[Action.Tilt].isPressed):
     controller.state.xAxis.value = controller.backdashOutOfCrouchFix.xAxisOutput
-
-proc handleYAxisInversion(controller: var DigitalMeleeController) =
-  if controller.actions[Action.InvertYAxis].isPressed:
-    controller.state.yAxis.value = -controller.state.yAxis.value
 
 proc handleChargedSmashes(controller: var DigitalMeleeController) =
   let cIsPressed = controller.actions[Action.CLeft].isPressed or
@@ -177,47 +157,19 @@ proc handleAStick(controller: var DigitalMeleeController) =
     controller.state.xAxis.value = controller.aStick.xAxisOutput
     controller.state.yAxis.value = controller.aStick.yAxisOutput
 
-    # if aStickModifier and
-    #    (controller.actions[Action.CLeft].isPressed or
-    #     controller.actions[Action.CRight].isPressed or
-    #     controller.actions[Action.CDown].isPressed or
-    #     controller.actions[Action.CUp].isPressed):
-    #   controller.state.cXAxis.value = 0.0
-    #   controller.state.cYAxis.value = 0.0
-
   else:
     controller.state.aButton.isPressed = controller.actions[Action.A].isPressed
 
-proc handleBStick(controller: var DigitalMeleeController) =
-  if controller.useExtraBButtons:
-    if controller.state.xAxis.value > 0.0:
-      controller.previousDirectionIsRight = true
+proc handleB(controller: var DigitalMeleeController) =
+  controller.safeGroundedDownB.update(controller.state.xAxis,
+                                      controller.state.yAxis,
+                                      controller.actions[Action.B].isPressed,
+                                      controller.actions[Action.Down].isPressed,
+                                      controller.actions[Action.Up].isPressed)
 
-    elif controller.state.xAxis.value < 0.0:
-      controller.previousDirectionIsRight = false
-
-    controller.bStick.update(controller.state.xAxis,
-                             controller.state.yAxis,
-                             controller.actions[Action.B].isPressed and not controller.actions[Action.Down].isPressed,
-                             controller.actions[Action.BSide].isPressed and not controller.previousDirectionIsRight,
-                             controller.actions[Action.BSide].isPressed and controller.previousDirectionIsRight,
-                             controller.actions[Action.B].isPressed and controller.actions[Action.Down].isPressed,
-                             controller.actions[Action.BUp].isPressed,
-                             controller.actions[Action.Shield].isPressed)
-
-    controller.state.bButton.isPressed = controller.bStick.outputState
-    controller.state.xAxis.value = controller.bStick.xAxisOutput
-    controller.state.yAxis.value = controller.bStick.yAxisOutput
-  else:
-    controller.safeGroundedDownB.update(controller.state.xAxis,
-                                        controller.state.yAxis,
-                                        controller.actions[Action.B].isPressed,
-                                        controller.actions[Action.Down].isPressed,
-                                        controller.actions[Action.Up].isPressed)
-
-    controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
-    controller.state.xAxis.value = controller.safeGroundedDownB.xAxisOutput
-    controller.state.yAxis.value = controller.safeGroundedDownB.yAxisOutput
+  controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
+  controller.state.xAxis.value = controller.safeGroundedDownB.xAxisOutput
+  controller.state.yAxis.value = controller.safeGroundedDownB.yAxisOutput
 
 proc handleJumpLogic(controller: var DigitalMeleeController) =
   if controller.useShortHopMacro:
@@ -269,54 +221,22 @@ proc handleShield(controller: var DigitalMeleeController) =
     controller.state.rButton.isPressed = controller.actions[Action.Shield].isPressed
     controller.state.lSlider.value = 0.0
 
-proc handleHoldCDown(controller: var DigitalMeleeController) =
-  if controller.actions[Action.HoldCDown].justPressed:
-    controller.isHoldingCDown = true
-
-  if controller.isHoldingCDown:
-    if controller.actions[Action.Shield].justPressed or
-       controller.actions[Action.StopHoldingCDown].justPressed:
-      controller.isHoldingCDown = false
-
-    if not controller.actions[Action.Tilt].isPressed and
-       (controller.actions[Action.CUp].justPressed or
-        controller.actions[Action.CDown].justPressed or
-        controller.actions[Action.CRight].justPressed or
-        controller.actions[Action.CLeft].justPressed):
-      controller.useAForC = true
-      controller.aForCTime = cpuTime()
-
 proc setActionState*(controller: var DigitalMeleeController, action: Action, state: bool) =
   controller.actions[action].isPressed = state
 
 proc update*(controller: var DigitalMeleeController) =
-  controller.handleHoldCDown()
   controller.updateAxesFromDirections()
-  controller.handleYAxisInversion()
   controller.handleBackdashOutOfCrouchFix()
   controller.handleModifierAngles()
   controller.handleAStick()
   controller.handleTiltModifier()
-  controller.handleBStick()
+  controller.handleB()
   controller.handleShieldTilt()
   controller.handleAirDodgeLogic()
   controller.handleAngledSmashes()
   controller.handleChargedSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
-
-  if controller.useAForC:
-    controller.state.aButton.isPressed = true
-    controller.state.xAxis.value = 0.0
-    controller.state.yAxis.value = 0.0
-
-    if controller.actions[Action.CUp].isPressed: controller.state.yAxis.value = 1.0
-    elif controller.actions[Action.CDown].isPressed: controller.state.yAxis.value = -1.0
-    if controller.actions[Action.CRight].isPressed: controller.state.xAxis.value = 1.0
-    elif controller.actions[Action.CLeft].isPressed: controller.state.xAxis.value = -1.0
-
-    if cpuTime() - controller.aForCTime >= 0.017:
-      controller.useAForC = false
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed

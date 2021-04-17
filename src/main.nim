@@ -42,7 +42,6 @@ configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
 configJson.insertIfMissing("useCStickTilting", true)
-configJson.insertIfMissing("useExtraBButtons", false)
 configJson.insertIfMissing("onOffToggleKey", Key.Key8)
 configJson.insertIfMissing("keyBinds", {
   $Action.Left: [Key.A],
@@ -53,18 +52,16 @@ configJson.insertIfMissing("keyBinds", {
   $Action.CRight: [Key.Slash],
   $Action.CDown: [Key.Apostrophe],
   $Action.CUp: [Key.P],
-  $Action.Tilt: [Key.CapsLock],
-  $Action.XMod: [Key.LeftAlt],
-  $Action.YMod: [Key.Space],
+  $Action.Tilt: [Key.Space],
+  $Action.XMod: [],
+  $Action.YMod: [],
   $Action.Start: [Key.Key5],
   $Action.A: [Key.RightWindows],
   $Action.B: [Key.RightAlt],
-  $Action.BUp: [],
-  $Action.BSide: [],
   $Action.Z: [Key.RightBracket],
   $Action.ShortHop: [Key.LeftBracket],
-  $Action.FullHop: [Key.Minus],
-  $Action.Shield: [Key.BackSlash],
+  $Action.FullHop: [Key.BackSlash],
+  $Action.Shield: [Key.CapsLock],
   $Action.AirDodge: [Key.Semicolon],
   $Action.ChargeSmash: [Key.Space],
   $Action.DLeft: [Key.V],
@@ -72,9 +69,6 @@ configJson.insertIfMissing("keyBinds", {
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
   $Action.ToggleLightShield: [Key.Space],
-  $Action.InvertYAxis: [],
-  $Action.HoldCDown: [Key.BackSpace],
-  $Action.StopHoldingCDown: [Key.Equals],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.A: 1,
@@ -126,7 +120,6 @@ else:
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool
-controller.useExtraBButtons = configJson["useExtraBButtons"].getBool
 
 proc main() {.async.} =
   while true:
