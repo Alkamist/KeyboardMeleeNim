@@ -32,7 +32,6 @@ type
     DRight,
     DDown,
     DUp,
-    ChargeSmash,
 
   StickTilter* = object
     isTilting: bool
@@ -44,7 +43,6 @@ type
     useCStickTilting*: bool
     actions*: array[Action, Button]
     state*: GCCState
-    chargeSmash: bool
     isLightShielding: bool
     delayBackdash: bool
     backdashTime: float
@@ -116,21 +114,6 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
 
     if cpuTime() - controller.backdashTime >= 0.05:
       controller.delayBackdash = false
-
-proc handleChargedSmashes(controller: var DigitalMeleeController) =
-  let cIsPressed = controller.actions[Action.CLeft].isPressed or
-                   controller.actions[Action.CRight].isPressed or
-                   controller.actions[Action.CDown].isPressed or
-                   controller.actions[Action.CUp].isPressed
-
-  if controller.actions[Action.ChargeSmash].isPressed and cIsPressed:
-    controller.chargeSmash = true
-
-  if not cIsPressed:
-    controller.chargeSmash = false
-
-  if controller.chargeSmash:
-    controller.state.aButton.isPressed = true
 
 proc handleAngledSmashes(controller: var DigitalMeleeController) =
   let
@@ -319,7 +302,6 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleSafeDownB()
   controller.handleAirDodgeLogic()
   controller.handleAngledSmashes()
-  controller.handleChargedSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
   controller.handleShieldTilt()

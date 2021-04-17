@@ -62,7 +62,6 @@ configJson.insertIfMissing("keyBinds", {
   $Action.FullHop: [Key.BackSlash],
   $Action.Shield: [Key.CapsLock],
   $Action.AirDodge: [Key.Semicolon],
-  $Action.ChargeSmash: [],
   $Action.DLeft: [Key.V],
   $Action.DRight: [Key.N],
   $Action.DDown: [Key.B],
