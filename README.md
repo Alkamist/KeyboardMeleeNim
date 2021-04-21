@@ -1,3 +1,4 @@
+
 # Keyboard Melee
 
 This is a program that enables the use of a keyboard to play Super Smash Bros. Melee. It currently only works on Windows. It is not impossible to get it working on other operating systems, it's just that I don't have other systems to test on and I'm not sure how to intercept and block keyboard input on them. This is a project made for personal use, and while in my opinion it maintains fair practices, it makes no attempt to be tournament legal.
@@ -27,3 +28,9 @@ To use VJoy, open the config.json file that the program created, and change the 
 - While holding either of the analog modifiers, the C Stick buttons become tilt buttons. The A button only outputs neutral attacks. (This functionality is toggleable in the config.json file)
 - The main jump button only short hops, while full hops can be performed with the right pinky. (This functionality is toggleable in the config.json file)
 - If airdodging straight to the left or the right with the right hand shield button, a long distance waveland/wavedash angle will be performed instead of dodging straight.
+
+## Notes
+
+If you aren't using a mechanical keyboard, you will most likely have problems with key rollover. This means that if you push too many keys at the same time, the keyboard won't register all of them.
+
+My default keybinds depend on there being a Windows key right next to the Right Alt key. A lot of keyboards actually have an FN key there, which is usually the one key that can't be rebound unfortunately. I encourage you to experiment with different keybinds by opening up the config.json file. You can bind multiple keys to one action by separating them with commas. Take a look inside the source code at the "kbdinput.nim" file to find an enum with all of the key names for the keybinds.
