@@ -136,8 +136,8 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
   let
-    shoulder = controller.actions[Action.Shield].isPressed or
-               controller.actions[Action.AirDodge].isPressed
+    shield = controller.actions[Action.Shield].isPressed
+    airDodge = controller.actions[Action.AirDodge].isPressed
     down = controller.actions[Action.Down].isPressed
     xMod = controller.actions[Action.XMod].isPressed
     yMod = controller.actions[Action.YMod].isPressed
@@ -145,18 +145,44 @@ proc handleShieldTilt(controller: var DigitalMeleeController) =
                 controller.actions[Action.Right].isPressed) and
                (down or controller.actions[Action.Up].isPressed)
 
-  if shoulder:
-    if diagonal and xMod:
-      controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
-      controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
+  if airDodge:
+    if diagonal:
+      if xMod:
+        controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+        controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
 
-    elif diagonal and yMod and down:
-      controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
-      controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
+      elif yMod:
+        if down:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
+          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
 
-    elif diagonal and ((not controller.useShieldTilt) or controller.actions[Action.AirDodge].isPressed):
-      controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
-      controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+      elif down:
+        controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
+        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+
+  elif shield:
+    if diagonal:
+      if xMod:
+        if controller.useShieldTilt:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+          controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
+
+        else:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6625
+          controller.state.yAxis.value = controller.state.yAxis.direction * 0.6625
+
+      elif yMod:
+        if down:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
+          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
+
+      elif down and not controller.useShieldTilt:
+        controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
+        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+
+    else:
+      if xMod and down:
+        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6625
 
   if controller.useShieldTilt and controller.actions[Action.Shield].isPressed:
     setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
