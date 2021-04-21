@@ -42,6 +42,8 @@ configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
 configJson.insertIfMissing("useCStickTilting", true)
+configJson.insertIfMissing("useShieldTilt", true)
+configJson.insertIfMissing("useWavelandHelper", true)
 configJson.insertIfMissing("onOffToggleKey", Key.Key8)
 configJson.insertIfMissing("keyBinds", {
   $Action.Left: [Key.A],
@@ -118,6 +120,8 @@ else:
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useCStickTilting = configJson["useCStickTilting"].getBool
+controller.useShieldTilt = configJson["useShieldTilt"].getBool
+controller.useWavelandHelper = configJson["useWavelandHelper"].getBool
 
 proc main() {.async.} =
   while true:

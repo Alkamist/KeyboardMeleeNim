@@ -36,6 +36,8 @@ type
   DigitalMeleeController* = object
     useShortHopMacro*: bool
     useCStickTilting*: bool
+    useShieldTilt*: bool
+    useWavelandHelper*: bool
     actions*: array[Action, Button]
     state*: GCCState
     isLightShielding: bool
@@ -133,7 +135,30 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
     controller.state.yAxis.value = controller.state.yAxis.direction * y
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
-  if controller.actions[Action.Shield].isPressed:
+  let
+    shoulder = controller.actions[Action.Shield].isPressed or
+               controller.actions[Action.AirDodge].isPressed
+    down = controller.actions[Action.Down].isPressed
+    xMod = controller.actions[Action.XMod].isPressed
+    yMod = controller.actions[Action.YMod].isPressed
+    diagonal = (controller.actions[Action.Left].isPressed or
+                controller.actions[Action.Right].isPressed) and
+               (down or controller.actions[Action.Up].isPressed)
+
+  if shoulder:
+    if diagonal and xMod:
+      controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
+
+    elif diagonal and yMod and down:
+      controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
+
+    elif diagonal and ((not controller.useShieldTilt) or controller.actions[Action.AirDodge].isPressed):
+      controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+
+  if controller.useShieldTilt and controller.actions[Action.Shield].isPressed:
     setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
 
 proc handleCStickTilting(controller: var DigitalMeleeController) =
@@ -197,29 +222,30 @@ proc handleSafeDownB(controller: var DigitalMeleeController) =
     else:
       controller.isDoingSafeDownB = false
 
-proc handleAirDodgeLogic(controller: var DigitalMeleeController) =
-  let
-    isLeft = controller.state.xAxis.isActive and controller.state.xAxis.value < 0.0
-    isRight = controller.state.xAxis.isActive and controller.state.xAxis.value > 0.0
-    isDown = controller.state.yAxis.isActive and controller.state.yAxis.value < 0.0
-    isUp = controller.state.yAxis.isActive and controller.state.yAxis.value > 0.0
-    isSideways = (isLeft or isRight) and not isDown
+proc handleWavelandHelper(controller: var DigitalMeleeController) =
+  if controller.useWavelandHelper:
+    let
+      isLeft = controller.state.xAxis.isActive and controller.state.xAxis.value < 0.0
+      isRight = controller.state.xAxis.isActive and controller.state.xAxis.value > 0.0
+      isDown = controller.state.yAxis.isActive and controller.state.yAxis.value < 0.0
+      isUp = controller.state.yAxis.isActive and controller.state.yAxis.value > 0.0
+      isSideways = (isLeft or isRight) and not isDown
 
-  if controller.actions[Action.AirDodge].justPressed:
-    controller.isAirDodging = true
-    controller.airDodgeTime = cpuTime()
+    if controller.actions[Action.AirDodge].justPressed:
+      controller.isAirDodging = true
+      controller.airDodgeTime = cpuTime()
 
-  if controller.isAirDodging and not isUp:
-    if cpuTime() - controller.airDodgeTime < 0.051:
-      if isSideways:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.7375
-        controller.state.yAxis.value = -0.3125
+    if controller.isAirDodging and not isUp:
+      if cpuTime() - controller.airDodgeTime < 0.051:
+        if isSideways:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+          controller.state.yAxis.value = -0.375
 
-      elif not isDown:
-        controller.state.yAxis.value = -0.3
+        elif not isDown:
+          controller.state.yAxis.value = -0.3
 
-    else:
-      controller.isAirDodging = false
+      else:
+        controller.isAirDodging = false
 
 proc handleAngledSmashes(controller: var DigitalMeleeController) =
   let
@@ -297,7 +323,7 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleShieldTilt()
   controller.handleCStickTilting()
   controller.handleSafeDownB()
-  controller.handleAirDodgeLogic()
+  controller.handleWavelandHelper()
   controller.handleAngledSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
