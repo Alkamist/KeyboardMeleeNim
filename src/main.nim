@@ -68,7 +68,9 @@ configJson.insertIfMissing("keyBinds", {
   $Action.DRight: [Key.N],
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
-  $Action.ToggleLightShield: [],
+  $Action.ToggleLightShield: [Key.Minus],
+  $Action.ChargeSmash: [Key.Enter],
+  $Action.InvertYAxis: [Key.Backspace],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.A: 1,

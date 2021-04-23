@@ -32,6 +32,8 @@ type
     DRight,
     DDown,
     DUp,
+    ChargeSmash,
+    InvertYAxis
 
   DigitalMeleeController* = object
     useShortHopMacro*: bool
@@ -40,6 +42,7 @@ type
     useWavelandHelper*: bool
     actions*: array[Action, Button]
     state*: GCCState
+    chargeSmash: bool
     isLightShielding: bool
     isDoingSafeDownB: bool
     delayBackdash: bool
@@ -251,6 +254,7 @@ proc handleSafeDownB(controller: var DigitalMeleeController) =
 proc handleWavelandHelper(controller: var DigitalMeleeController) =
   if controller.useWavelandHelper:
     let
+      xMod = controller.actions[Action.XMod].isPressed
       isLeft = controller.state.xAxis.isActive and controller.state.xAxis.value < 0.0
       isRight = controller.state.xAxis.isActive and controller.state.xAxis.value > 0.0
       isDown = controller.state.yAxis.isActive and controller.state.yAxis.value < 0.0
@@ -266,6 +270,10 @@ proc handleWavelandHelper(controller: var DigitalMeleeController) =
         if isSideways:
           controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
           controller.state.yAxis.value = -0.375
+
+        elif xMod and isDown:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
+          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
 
         elif not isDown:
           controller.state.yAxis.value = -0.3
@@ -339,6 +347,25 @@ proc handleShield(controller: var DigitalMeleeController) =
     controller.state.rButton.isPressed = controller.actions[Action.Shield].isPressed
     controller.state.lSlider.value = 0.0
 
+proc handleChargedSmashes(controller: var DigitalMeleeController) =
+  let cIsPressed = controller.actions[Action.CLeft].isPressed or
+                   controller.actions[Action.CRight].isPressed or
+                   controller.actions[Action.CDown].isPressed or
+                   controller.actions[Action.CUp].isPressed
+
+  if controller.actions[Action.ChargeSmash].isPressed and cIsPressed:
+    controller.chargeSmash = true
+
+  if not cIsPressed:
+    controller.chargeSmash = false
+
+  if controller.chargeSmash:
+    controller.state.aButton.isPressed = true
+
+proc handleYAxisInversion(controller: var DigitalMeleeController) =
+  if controller.actions[Action.InvertYAxis].isPressed:
+    controller.state.yAxis.value = -controller.state.yAxis.value
+
 proc setActionState*(controller: var DigitalMeleeController, action: Action, state: bool) =
   controller.actions[action].isPressed = state
 
@@ -353,6 +380,8 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleAngledSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
+  controller.handleChargedSmashes()
+  controller.handleYAxisInversion()
 
   controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
