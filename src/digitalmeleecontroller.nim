@@ -131,8 +131,9 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
   elif controller.actions[Action.YMod].isPressed:
     let
+      down = controller.actions[Action.Down].isPressed
       x = if diagonal: 0.3125 else: 0.3325
-      y = 0.7375
+      y = if down and not diagonal: 1.0 else: 0.7375
 
     controller.state.xAxis.value = controller.state.xAxis.direction * x
     controller.state.yAxis.value = controller.state.yAxis.direction * y
