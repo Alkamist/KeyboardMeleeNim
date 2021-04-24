@@ -13,8 +13,8 @@ type
     Right,
     Down,
     Up,
-    XMod,
-    YMod,
+    Mod1,
+    Mod2,
     CLeft,
     CRight,
     CDown,
@@ -81,8 +81,8 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
   controller.state.yAxis.setValueFromStates(controller.actions[Action.Down].isPressed, controller.actions[Action.Up].isPressed)
 
   let
-    tilt = controller.actions[Action.XMod].isPressed or
-           controller.actions[Action.YMod].isPressed
+    tilt = controller.actions[Action.Mod1].isPressed or
+           controller.actions[Action.Mod2].isPressed
     enableCStick = controller.actions[Action.Shield].isPressed or
                    not controller.useCStickTilting or
                    not tilt
@@ -116,80 +116,61 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
       controller.delayBackdash = false
 
 proc handleModifierAngles(controller: var DigitalMeleeController) =
-  let diagonal = (controller.actions[Action.Left].isPressed or
-                  controller.actions[Action.Right].isPressed) and
-                 (controller.actions[Action.Down].isPressed or
-                  controller.actions[Action.Up].isPressed)
-
-  if controller.actions[Action.XMod].isPressed:
-    let
-      x = if diagonal: 0.7375 else: 0.6625
-      y = if diagonal: 0.3125 else: 0.5375
-
+  template stickMod(x, y: float): untyped =
     controller.state.xAxis.value = controller.state.xAxis.direction * x
     controller.state.yAxis.value = controller.state.yAxis.direction * y
 
-  elif controller.actions[Action.YMod].isPressed:
-    let
-      down = controller.actions[Action.Down].isPressed
-      x = if diagonal: 0.3125 else: 0.3325
-      y = if down and not diagonal: 1.0 else: 0.7375
+  let
+    down = controller.actions[Action.Down].isPressed
+    diagonal = (controller.actions[Action.Left].isPressed or
+                controller.actions[Action.Right].isPressed) and
+               (down or
+                controller.actions[Action.Up].isPressed)
 
-    controller.state.xAxis.value = controller.state.xAxis.direction * x
-    controller.state.yAxis.value = controller.state.yAxis.direction * y
+  if controller.actions[Action.Mod1].isPressed:
+    if diagonal:
+      if down: stickMod(0.3325, 0.7375)
+      else: stickMod(0.45, 0.8875)
+    else:
+      if down: stickMod(0.6625, 1.0)
+      else: stickMod(0.45, 0.6)
+
+  if controller.actions[Action.Mod2].isPressed:
+    if diagonal: stickMod(0.7375, 0.3125)
+    else: stickMod(0.6625, 0.5375)
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
+  template stickMod(x, y: float): untyped =
+    controller.state.xAxis.value = controller.state.xAxis.direction * x
+    controller.state.yAxis.value = controller.state.yAxis.direction * y
+
   let
     shield = controller.actions[Action.Shield].isPressed
     airDodge = controller.actions[Action.AirDodge].isPressed
     down = controller.actions[Action.Down].isPressed
-    xMod = controller.actions[Action.XMod].isPressed
-    yMod = controller.actions[Action.YMod].isPressed
+    mod1 = controller.actions[Action.Mod1].isPressed
+    mod2 = controller.actions[Action.Mod2].isPressed
     diagonal = (controller.actions[Action.Left].isPressed or
                 controller.actions[Action.Right].isPressed) and
                (down or controller.actions[Action.Up].isPressed)
 
   if airDodge:
     if diagonal:
-      if xMod:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
-        controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
-
-      elif yMod:
-        if down:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
-          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
-
-      elif down:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
-        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+      if mod1: stickMod(0.5, 0.85)
+      elif mod2: stickMod(0.6375, 0.375)
+      elif down: stickMod(0.7, 0.6875)
 
   elif shield:
-    if diagonal:
-      if xMod:
-        if controller.useShieldTilt:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
-          controller.state.yAxis.value = controller.state.yAxis.direction * 0.375
-
-        else:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6625
-          controller.state.yAxis.value = controller.state.yAxis.direction * 0.6625
-
-      elif yMod:
-        if down:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
-          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
-
-      elif down and not controller.useShieldTilt:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.7
-        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6875
+    if controller.useShieldTilt:
+      setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
 
     else:
-      if xMod and down:
-        controller.state.yAxis.value = controller.state.yAxis.direction * 0.6625
+      if diagonal:
+        if mod1 or mod2: stickMod(0.6625, 0.6625)
+        elif down: stickMod(0.7, 0.6875)
 
-  if controller.useShieldTilt and controller.actions[Action.Shield].isPressed:
-    setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
+      else:
+        if mod1 and down: stickMod(1.0, 0.6625)
 
 proc handleCStickTilting(controller: var DigitalMeleeController) =
   controller.state.aButton.isPressed = controller.actions[Action.A].isPressed
@@ -209,8 +190,8 @@ proc handleCStickTilting(controller: var DigitalMeleeController) =
         attackState = false
 
     if not controller.actions[Action.Shield].isPressed:
-      let tilt = controller.actions[Action.XMod].isPressed or
-                 controller.actions[Action.YMod].isPressed
+      let tilt = controller.actions[Action.Mod1].isPressed or
+                 controller.actions[Action.Mod2].isPressed
 
       aAttack(tilt and controller.actions[Action.CLeft].justPressed,
               controller.isLeftTilting,
@@ -255,7 +236,6 @@ proc handleSafeDownB(controller: var DigitalMeleeController) =
 proc handleWavelandHelper(controller: var DigitalMeleeController) =
   if controller.useWavelandHelper:
     let
-      xMod = controller.actions[Action.XMod].isPressed
       isLeft = controller.state.xAxis.isActive and controller.state.xAxis.value < 0.0
       isRight = controller.state.xAxis.isActive and controller.state.xAxis.value > 0.0
       isDown = controller.state.yAxis.isActive and controller.state.yAxis.value < 0.0
@@ -272,20 +252,16 @@ proc handleWavelandHelper(controller: var DigitalMeleeController) =
           controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
           controller.state.yAxis.value = -0.375
 
-        elif xMod and isDown:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
-          controller.state.yAxis.value = controller.state.yAxis.direction * 0.85
-
         elif not isDown:
-          controller.state.yAxis.value = -0.3
+          controller.state.yAxis.value = -1.0
 
       else:
         controller.isAirDodging = false
 
 proc handleAngledSmashes(controller: var DigitalMeleeController) =
   let
-    tilt = controller.actions[Action.XMod].isPressed or
-           controller.actions[Action.YMod].isPressed
+    tilt = controller.actions[Action.Mod1].isPressed or
+           controller.actions[Action.Mod2].isPressed
     cAngled = (controller.actions[Action.CLeft].isPressed or
                controller.actions[Action.CRight].isPressed) and
               (controller.actions[Action.Down].isPressed or
