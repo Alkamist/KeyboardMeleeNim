@@ -122,6 +122,7 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
   let
     down = controller.actions[Action.Down].isPressed
+    b = controller.actions[Action.B].isPressed
     diagonal = (controller.actions[Action.Left].isPressed or
                 controller.actions[Action.Right].isPressed) and
                (down or
@@ -129,15 +130,18 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
   if controller.actions[Action.Mod1].isPressed:
     if diagonal:
-      if down: stickMod(0.3325, 0.7375)
-      else: stickMod(0.45, 0.8875)
+      if down or b: stickMod(0.3875, 0.9125)
+      else: stickMod(0.2875, 0.65)
+
     else:
-      if down: stickMod(0.6625, 1.0)
-      else: stickMod(0.45, 0.6)
+      if not b and not down: stickMod(0.6625, 0.5375)
 
   if controller.actions[Action.Mod2].isPressed:
-    if diagonal: stickMod(0.7375, 0.3125)
-    else: stickMod(0.6625, 0.5375)
+    if diagonal:
+      if b: stickMod(0.9125, 0.3875)
+      else: stickMod(0.7375, 0.3125)
+    else:
+      if not b: stickMod(0.6625, 0.5375)
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
   template stickMod(x, y: float): untyped =
