@@ -23,6 +23,7 @@ type
     FullHop,
     A,
     B,
+    UpB,
     Z,
     Shield,
     ToggleLightShield,
@@ -46,6 +47,8 @@ type
     isLightShielding: bool
     isDoingSafeDownB: bool
     delayBackdash: bool
+    pressUpB: bool
+    delayUpB: bool
     isShortHopping: bool
     isFullHopping: bool
     isAirDodging: bool
@@ -60,6 +63,8 @@ type
     fullHopTime: float
     airDodgeTime: float
     aAttackTime: float
+    upBTime: float
+    delayUpBTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.state = initGCCState()
@@ -112,7 +117,7 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
             controller.actions[Action.B].isPressed):
       controller.state.xAxis.value = 0.0
 
-    if cpuTime() - controller.backdashTime >= 0.05:
+    if cpuTime() - controller.backdashTime >= 0.025:
       controller.delayBackdash = false
 
 proc handleModifierAngles(controller: var DigitalMeleeController) =
@@ -122,7 +127,8 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
   let
     down = controller.actions[Action.Down].isPressed
-    b = controller.actions[Action.B].isPressed
+    b = controller.actions[Action.B].isPressed or
+        controller.actions[Action.UpB].isPressed
     diagonal = (controller.actions[Action.Left].isPressed or
                 controller.actions[Action.Right].isPressed) and
                (down or
@@ -328,6 +334,30 @@ proc handleShield(controller: var DigitalMeleeController) =
     controller.state.rButton.isPressed = controller.actions[Action.Shield].isPressed
     controller.state.lSlider.value = 0.0
 
+proc handleB(controller: var DigitalMeleeController) =
+  controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
+
+  if controller.actions[Action.UpB].justPressed:
+      controller.delayUpB = true
+      controller.delayUpBTime = cpuTime()
+
+  if controller.delayUpB:
+    controller.state.xAxis.value = controller.state.xAxis.direction * 0.3
+    controller.state.yAxis.value = 1.0
+
+    if cpuTime() - controller.delayUpBTime > 0.017:
+      controller.delayUpB = false
+      controller.pressUpB = true
+      controller.upBTime = cpuTime()
+
+  if controller.pressUpB:
+    controller.state.xAxis.value = controller.state.xAxis.direction * 0.3
+    controller.state.yAxis.value = 1.0
+    controller.state.bButton.isPressed = true
+
+    if cpuTime() - controller.upBTime > 0.025:
+      controller.pressUpB = false
+
 proc handleChargedSmashes(controller: var DigitalMeleeController) =
   let cIsPressed = controller.actions[Action.CLeft].isPressed or
                    controller.actions[Action.CRight].isPressed or
@@ -361,10 +391,10 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleAngledSmashes()
   controller.handleJumpLogic()
   controller.handleShield()
+  controller.handleB()
   controller.handleChargedSmashes()
   controller.handleYAxisInversion()
 
-  controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed
   controller.state.startButton.isPressed = controller.actions[Action.Start].isPressed
