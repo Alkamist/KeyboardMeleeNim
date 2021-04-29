@@ -117,7 +117,7 @@ proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
             controller.actions[Action.B].isPressed):
       controller.state.xAxis.value = 0.0
 
-    if cpuTime() - controller.backdashTime >= 0.025:
+    if cpuTime() - controller.backdashTime >= 0.017:
       controller.delayBackdash = false
 
 proc handleModifierAngles(controller: var DigitalMeleeController) =
