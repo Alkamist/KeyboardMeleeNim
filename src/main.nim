@@ -41,7 +41,7 @@ configJson.insertIfMissing("useVJoy", false)
 configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
-configJson.insertIfMissing("useCStickTilting", true)
+configJson.insertIfMissing("useCStickTilting", false)
 configJson.insertIfMissing("useShieldTilt", true)
 configJson.insertIfMissing("useWavelandHelper", true)
 configJson.insertIfMissing("onOffToggleKey", Key.Key8)
@@ -50,6 +50,8 @@ configJson.insertIfMissing("keyBinds", {
   $Action.Right: [Key.D],
   $Action.Down: [Key.S],
   $Action.Up: [Key.W],
+  $Action.SoftLeft: [Key.Q],
+  $Action.SoftRight: [Key.E],
   $Action.CLeft: [Key.L],
   $Action.CRight: [Key.Slash],
   $Action.CDown: [Key.Apostrophe],
@@ -70,7 +72,7 @@ configJson.insertIfMissing("keyBinds", {
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
   $Action.ToggleLightShield: [Key.Minus],
-  $Action.ChargeSmash: [Key.Enter],
+  $Action.ChargeSmash: [Key.Space],
   $Action.InvertYAxis: [Key.Backspace],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {

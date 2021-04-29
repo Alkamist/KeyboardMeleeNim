@@ -13,6 +13,8 @@ type
     Right,
     Down,
     Up,
+    SoftLeft,
+    SoftRight,
     Mod1,
     Mod2,
     CLeft,
@@ -57,6 +59,9 @@ type
     isLeftTilting: bool
     isRightTilting: bool
     isDoingNeutralA: bool
+    isDoingSoftDirection: bool
+    isDoingSoftUp: bool
+    isDoingSoftDown: bool
     backdashTime: float
     safeDownBTime: float
     shortHopTime: float
@@ -65,6 +70,10 @@ type
     aAttackTime: float
     upBTime: float
     delayUpBTime: float
+    softDirectionTime: float
+    softUpTime: float
+    softDownTime: float
+    pushDownTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.state = initGCCState()
@@ -82,8 +91,12 @@ proc updateActions(controller: var DigitalMeleeController) =
     action.update()
 
 proc updateAxesFromDirections(controller: var DigitalMeleeController) =
-  controller.state.xAxis.setValueFromStates(controller.actions[Action.Left].isPressed, controller.actions[Action.Right].isPressed)
-  controller.state.yAxis.setValueFromStates(controller.actions[Action.Down].isPressed, controller.actions[Action.Up].isPressed)
+  controller.state.xAxis.setValueFromStates(controller.actions[Action.Left].isPressed or
+                                            controller.actions[Action.SoftLeft].isPressed,
+                                            controller.actions[Action.Right].isPressed or
+                                            controller.actions[Action.SoftRight].isPressed)
+  controller.state.yAxis.setValueFromStates(controller.actions[Action.Down].isPressed,
+                                            controller.actions[Action.Up].isPressed)
 
   let
     tilt = controller.actions[Action.Mod1].isPressed or
@@ -96,6 +109,60 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
                                              controller.actions[Action.CRight].isPressed and enableCStick)
   controller.state.cYAxis.setValueFromStates((controller.actions[Action.CDown].isPressed and enableCStick),
                                              controller.actions[Action.CUp].isPressed and enableCStick)
+
+proc handleSoftDirections(controller: var DigitalMeleeController) =
+  # Soft left and right:
+
+  let
+    softPress = controller.actions[Action.SoftLeft].justPressed or
+                controller.actions[Action.SoftRight].justPressed
+    softHeld = controller.actions[Action.SoftLeft].isPressed or
+               controller.actions[Action.SoftRight].isPressed
+    directionRelease = controller.actions[Action.SoftLeft].justReleased or
+                       controller.actions[Action.SoftRight].justReleased or
+                       controller.actions[Action.Left].justReleased or
+                       controller.actions[Action.Right].justReleased
+
+  if softPress or softHeld and directionRelease:
+    controller.isDoingSoftDirection = true
+    controller.softDirectionTime = cpuTime()
+
+  if controller.isDoingSoftDirection:
+    controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
+
+    if cpuTime() - controller.softDirectionTime > 0.034:
+      controller.isDoingSoftDirection = false
+
+  # Soft up:
+
+  if controller.actions[Action.Up].justPressed and
+     not controller.actions[Action.AirDodge].isPressed:
+    controller.isDoingSoftUp = true
+    controller.softUpTime = cpuTime()
+
+  if controller.isDoingSoftUp:
+    if controller.state.yAxis.value > 0.0:
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+
+    if cpuTime() - controller.softUpTime > 0.051:
+      controller.isDoingSoftUp = false
+
+  # Soft down:
+
+  if controller.actions[Action.Down].justPressed:
+    controller.pushDownTime = cpuTime()
+
+  if cpuTime() - controller.pushDownTime <= 0.051 and
+     controller.actions[Action.A].justPressed:
+    controller.softDownTime = cpuTime()
+    controller.isDoingSoftDown = true
+
+  if controller.isDoingSoftDown:
+    if controller.state.yAxis.value < 0.0:
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+
+    if cpuTime() - controller.softDownTime > 0.051:
+      controller.isDoingSoftDown = false
 
 proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
   if controller.actions[Action.Down].isPressed and
@@ -136,18 +203,19 @@ proc handleModifierAngles(controller: var DigitalMeleeController) =
 
   if controller.actions[Action.Mod1].isPressed:
     if diagonal:
-      if down or b: stickMod(0.3875, 0.9125)
-      else: stickMod(0.2875, 0.65)
+      if b: stickMod(0.9125, 0.3875)
+      else: stickMod(0.7375, 0.3125)
 
     else:
-      if not b and not down: stickMod(0.6625, 0.5375)
+      if not b: stickMod(0.6625, 0.5375)
 
   if controller.actions[Action.Mod2].isPressed:
     if diagonal:
-      if b: stickMod(0.9125, 0.3875)
-      else: stickMod(0.7375, 0.3125)
+      if b: stickMod(0.3875, 0.9125)
+      else: stickMod(0.3125, 0.7375)
+
     else:
-      if not b: stickMod(0.6625, 0.5375)
+      if not b: stickMod(0.3375, 0.7375)
 
 proc handleShieldTilt(controller: var DigitalMeleeController) =
   template stickMod(x, y: float): untyped =
@@ -259,8 +327,13 @@ proc handleWavelandHelper(controller: var DigitalMeleeController) =
     if controller.isAirDodging and not isUp:
       if cpuTime() - controller.airDodgeTime < 0.051:
         if isSideways:
-          controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
-          controller.state.yAxis.value = -0.375
+          if controller.actions[Action.SoftLeft].isPressed or
+             controller.actions[Action.SoftRight].isPressed:
+            controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
+            controller.state.yAxis.value = -0.85
+          else:
+            controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+            controller.state.yAxis.value = -0.375
 
         elif not isDown:
           controller.state.yAxis.value = -1.0
@@ -338,11 +411,10 @@ proc handleB(controller: var DigitalMeleeController) =
   controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
 
   if controller.actions[Action.UpB].justPressed:
-      controller.delayUpB = true
-      controller.delayUpBTime = cpuTime()
+    controller.delayUpB = true
+    controller.delayUpBTime = cpuTime()
 
   if controller.delayUpB:
-    controller.state.xAxis.value = controller.state.xAxis.direction * 0.3
     controller.state.yAxis.value = 1.0
 
     if cpuTime() - controller.delayUpBTime > 0.017:
@@ -351,11 +423,10 @@ proc handleB(controller: var DigitalMeleeController) =
       controller.upBTime = cpuTime()
 
   if controller.pressUpB:
-    controller.state.xAxis.value = controller.state.xAxis.direction * 0.3
     controller.state.yAxis.value = 1.0
     controller.state.bButton.isPressed = true
 
-    if cpuTime() - controller.upBTime > 0.025:
+    if cpuTime() - controller.upBTime > 0.017:
       controller.pressUpB = false
 
 proc handleChargedSmashes(controller: var DigitalMeleeController) =
@@ -383,6 +454,7 @@ proc setActionState*(controller: var DigitalMeleeController, action: Action, sta
 proc update*(controller: var DigitalMeleeController) =
   controller.updateAxesFromDirections()
   controller.handleBackdashOutOfCrouchFix()
+  controller.handleSoftDirections()
   controller.handleModifierAngles()
   controller.handleShieldTilt()
   controller.handleCStickTilting()
