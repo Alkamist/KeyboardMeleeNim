@@ -111,9 +111,9 @@ proc updateAxesFromDirections(controller: var DigitalMeleeController) =
                                              controller.actions[Action.CUp].isPressed and enableCStick)
 
 proc handleSoftDirections(controller: var DigitalMeleeController) =
-  # Soft left and right:
-
   let
+    hardPress = controller.actions[Action.Left].isPressed or
+                controller.actions[Action.Right].isPressed
     softPress = controller.actions[Action.SoftLeft].justPressed or
                 controller.actions[Action.SoftRight].justPressed
     softHeld = controller.actions[Action.SoftLeft].isPressed or
@@ -123,11 +123,19 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
                        controller.actions[Action.Left].justReleased or
                        controller.actions[Action.Right].justReleased
 
+  # Soft left and right:
+
   if softPress or softHeld and directionRelease:
     controller.isDoingSoftDirection = true
     controller.softDirectionTime = cpuTime()
 
-  if controller.isDoingSoftDirection:
+  if softHeld and
+     (controller.actions[Action.Up].isPressed or
+      controller.actions[Action.Down].isPressed):
+    controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
+    controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+
+  elif controller.isDoingSoftDirection:
     controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
     if cpuTime() - controller.softDirectionTime > 0.034:
@@ -143,6 +151,12 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
   if controller.isDoingSoftUp:
     if controller.state.yAxis.value > 0.0:
       controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+
+      #if softHeld:
+      #  controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
+
+      if hardPress:
+        controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
     if cpuTime() - controller.softUpTime > 0.051:
       controller.isDoingSoftUp = false
@@ -160,6 +174,9 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
   if controller.isDoingSoftDown:
     if controller.state.yAxis.value < 0.0:
       controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+
+      #if softHeld:
+      #  controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
 
     if cpuTime() - controller.softDownTime > 0.051:
       controller.isDoingSoftDown = false
