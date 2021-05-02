@@ -41,7 +41,6 @@ configJson.insertIfMissing("useVJoy", false)
 configJson.insertIfMissing("vJoyDeviceId", 1)
 configJson.insertIfMissing("vJoyDllPath", "C:\\Program Files\\vJoy\\x64\\vJoyInterface.dll")
 configJson.insertIfMissing("useShortHopMacro", true)
-configJson.insertIfMissing("useCStickTilting", false)
 configJson.insertIfMissing("useShieldTilt", true)
 configJson.insertIfMissing("useWavelandHelper", true)
 configJson.insertIfMissing("onOffToggleKey", Key.Key8)
@@ -61,7 +60,7 @@ configJson.insertIfMissing("keyBinds", {
   $Action.Start: [Key.Key5],
   $Action.A: [Key.RightWindows],
   $Action.B: [Key.RightAlt],
-  $Action.UpB: [Key.Period],
+  $Action.UpB: [Key.Equals],
   $Action.Z: [Key.RightBracket],
   $Action.ShortHop: [Key.LeftBracket],
   $Action.FullHop: [Key.BackSlash],
@@ -124,7 +123,6 @@ else:
   dolphinCtrl = initDolphinController(1, "")
 
 controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
-controller.useCStickTilting = configJson["useCStickTilting"].getBool
 controller.useShieldTilt = configJson["useShieldTilt"].getBool
 controller.useWavelandHelper = configJson["useWavelandHelper"].getBool
 
