@@ -60,7 +60,7 @@ configJson.insertIfMissing("keyBinds", {
   $Action.Start: [Key.Key5],
   $Action.A: [Key.RightWindows],
   $Action.B: [Key.RightAlt],
-  $Action.UpB: [Key.Equals],
+  $Action.UpB: [Key.Period],
   $Action.Z: [Key.RightBracket],
   $Action.ShortHop: [Key.LeftBracket],
   $Action.FullHop: [Key.BackSlash],

@@ -61,6 +61,7 @@ type
     isDoingSoftDirection: bool
     isDoingSoftUp: bool
     isDoingSoftDown: bool
+    isShieldTilting: bool
     backdashTime: float
     safeDownBTime: float
     shortHopTime: float
@@ -73,6 +74,8 @@ type
     softUpTime: float
     softDownTime: float
     pushDownTime: float
+    smashDITime: float
+    shieldTiltTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.state = initGCCState()
@@ -82,6 +85,8 @@ proc initDigitalMeleeController*(): DigitalMeleeController =
   result.fullHopTime = cpuTime()
   result.airDodgeTime = cpuTime()
   result.aAttackTime = cpuTime()
+  result.smashDITime = cpuTime()
+  result.shieldTiltTime = cpuTime()
 
 proc updateActions(controller: var DigitalMeleeController) =
   for action in controller.actions.mitems:
@@ -141,13 +146,10 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
     if controller.state.yAxis.value > 0.0:
       controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
 
-      #if softHeld:
-      #  controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
-
       if hardPress:
         controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
-    if cpuTime() - controller.softUpTime > 0.051:
+    if cpuTime() - controller.softUpTime > 0.067:
       controller.isDoingSoftUp = false
 
   # Soft down:
@@ -164,8 +166,8 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
     if controller.state.yAxis.value < 0.0:
       controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
 
-      #if softHeld:
-      #  controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
+      if hardPress:
+        controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
     if cpuTime() - controller.softDownTime > 0.051:
       controller.isDoingSoftDown = false
@@ -246,7 +248,17 @@ proc handleShieldTilt(controller: var DigitalMeleeController) =
 
   elif shield:
     if controller.useShieldTilt:
-      setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
+      if controller.actions[Action.Shield].justPressed or
+         controller.state.xAxis.justCrossedCenter or
+         controller.state.yAxis.justCrossedCenter:
+        controller.shieldTiltTime = cpuTime()
+        controller.isShieldTilting = true
+
+      if controller.isShieldTilting:
+        setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
+
+        if cpuTime() - controller.shieldTiltTime > 0.051:
+          controller.isShieldTilting = false
 
     else:
       if diagonal:
@@ -405,8 +417,47 @@ proc handleChargedSmashes(controller: var DigitalMeleeController) =
     controller.state.aButton.isPressed = true
 
 proc handleYAxisInversion(controller: var DigitalMeleeController) =
+  # if controller.actions[Action.InvertYAxis].isPressed:
+  #   controller.state.yAxis.value = -controller.state.yAxis.value
+
+  let frame = 0.01666666667
+
+  if controller.actions[Action.InvertYAxis].justPressed or
+     cpuTime() - controller.smashDITime >= 2.0 * frame:
+    controller.smashDITime = cpuTime()
+
   if controller.actions[Action.InvertYAxis].isPressed:
-    controller.state.yAxis.value = -controller.state.yAxis.value
+    let
+      timer = cpuTime() - controller.smashDITime
+      horizontal = controller.state.xAxis.isActive and not controller.state.yAxis.isActive
+      vertical = controller.state.yAxis.isActive and not controller.state.xAxis.isActive
+
+    template asdf(axis: untyped): untyped =
+      if timer <= frame:
+        axis = -0.3125
+
+      elif timer >= frame and timer <= 2.0 * frame:
+        axis = 0.3125
+
+    if horizontal:
+      if timer <= frame:
+        controller.state.yAxis.value = -0.3125
+      elif timer >= frame and timer <= 2.0 * frame:
+        controller.state.yAxis.value = 0.3125
+
+    elif vertical:
+      if timer <= frame:
+        controller.state.xAxis.value = -0.3125
+      elif timer >= frame and timer <= 2.0 * frame:
+        controller.state.xAxis.value = 0.3125
+
+    else:
+      if timer <= frame:
+        controller.state.xAxis.value = 0.0
+        controller.state.yAxis.value = controller.state.yAxis.direction
+      elif timer >= frame and timer <= 2.0 * frame:
+        controller.state.xAxis.value = controller.state.xAxis.direction
+        controller.state.yAxis.value = 0.0
 
 proc setActionState*(controller: var DigitalMeleeController, action: Action, state: bool) =
   controller.actions[action].isPressed = state
