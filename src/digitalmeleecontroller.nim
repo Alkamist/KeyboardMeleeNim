@@ -257,7 +257,7 @@ proc handleShieldTilt(controller: var DigitalMeleeController) =
       if controller.isShieldTilting:
         setMagnitude(controller.state.xAxis, controller.state.yAxis, 0.6625)
 
-        if cpuTime() - controller.shieldTiltTime > 0.051:
+        if cpuTime() - controller.shieldTiltTime > 0.067:
           controller.isShieldTilting = false
 
     else:
