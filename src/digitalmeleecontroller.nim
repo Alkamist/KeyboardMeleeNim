@@ -117,6 +117,11 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
                        controller.actions[Action.Left].justReleased or
                        controller.actions[Action.Right].justReleased
 
+  # Up and down tilt:
+
+  if controller.actions[Action.A].isPressed and hardPress:
+    controller.state.xAxis.value = controller.state.xAxis.direction * 0.6
+
   # Soft left and right:
 
   if softPress or softHeld and directionRelease:
@@ -144,12 +149,15 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
 
   if controller.isDoingSoftUp:
     if controller.state.yAxis.value > 0.0:
-      controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
+      controller.state.yAxis.value = controller.state.yAxis.direction * 0.55
 
       if hardPress:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
+        if controller.actions[Action.A].isPressed:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
+        else:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.55
 
-    if cpuTime() - controller.softUpTime > 0.067:
+    if cpuTime() - controller.softUpTime > 0.051:
       controller.isDoingSoftUp = false
 
   # Soft down:
@@ -167,7 +175,10 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
       controller.state.yAxis.value = controller.state.yAxis.direction * 0.65
 
       if hardPress:
-        controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
+        if controller.actions[Action.A].isPressed:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.4125
+        else:
+          controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
     if cpuTime() - controller.softDownTime > 0.051:
       controller.isDoingSoftDown = false
