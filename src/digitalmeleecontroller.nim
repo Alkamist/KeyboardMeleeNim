@@ -36,7 +36,7 @@ type
     DDown,
     DUp,
     ChargeSmash,
-    InvertYAxis
+    WankDI
 
   DigitalMeleeController* = object
     useShortHopMacro*: bool
@@ -157,7 +157,7 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
         else:
           controller.state.xAxis.value = controller.state.xAxis.direction * 0.55
 
-    if cpuTime() - controller.softUpTime > 0.051:
+    if cpuTime() - controller.softUpTime > 0.067:
       controller.isDoingSoftUp = false
 
   # Soft down:
@@ -180,7 +180,7 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
         else:
           controller.state.xAxis.value = controller.state.xAxis.direction * 0.65
 
-    if cpuTime() - controller.softDownTime > 0.051:
+    if cpuTime() - controller.softDownTime > 0.067:
       controller.isDoingSoftDown = false
 
 proc handleBackdashOutOfCrouchFix(controller: var DigitalMeleeController) =
@@ -427,17 +427,14 @@ proc handleChargedSmashes(controller: var DigitalMeleeController) =
   if controller.chargeSmash:
     controller.state.aButton.isPressed = true
 
-proc handleYAxisInversion(controller: var DigitalMeleeController) =
-  # if controller.actions[Action.InvertYAxis].isPressed:
-  #   controller.state.yAxis.value = -controller.state.yAxis.value
-
+proc handleWankDI(controller: var DigitalMeleeController) =
   let frame = 0.01666666667
 
-  if controller.actions[Action.InvertYAxis].justPressed or
+  if controller.actions[Action.WankDI].justPressed or
      cpuTime() - controller.smashDITime >= 2.0 * frame:
     controller.smashDITime = cpuTime()
 
-  if controller.actions[Action.InvertYAxis].isPressed:
+  if controller.actions[Action.WankDI].isPressed:
     let
       timer = cpuTime() - controller.smashDITime
       horizontal = controller.state.xAxis.isActive and not controller.state.yAxis.isActive
@@ -488,7 +485,7 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleShield()
   controller.handleB()
   controller.handleChargedSmashes()
-  controller.handleYAxisInversion()
+  controller.handleWankDI()
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
   controller.state.lButton.isPressed = controller.actions[Action.AirDodge].isPressed

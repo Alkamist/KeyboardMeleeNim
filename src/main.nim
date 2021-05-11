@@ -2,7 +2,6 @@ import
   std/json,
   std/tables,
   std/strutils,
-  std/asyncdispatch,
   std/os,
   kbdinput,
   vjoy,
@@ -60,7 +59,7 @@ configJson.insertIfMissing("keyBinds", {
   $Action.Start: [Key.Key5],
   $Action.A: [Key.RightWindows],
   $Action.B: [Key.RightAlt],
-  $Action.UpB: [Key.Period],
+  $Action.UpB: [Key.Minus],
   $Action.Z: [Key.RightBracket],
   $Action.ShortHop: [Key.LeftBracket],
   $Action.FullHop: [Key.BackSlash],
@@ -70,9 +69,9 @@ configJson.insertIfMissing("keyBinds", {
   $Action.DRight: [Key.N],
   $Action.DDown: [Key.B],
   $Action.DUp: [Key.G],
-  $Action.ToggleLightShield: [Key.Minus],
+  $Action.ToggleLightShield: [Key.Equals],
   $Action.ChargeSmash: [Key.Space],
-  $Action.InvertYAxis: [Key.Backspace],
+  $Action.WankDI: [Key.Backspace],
 })
 configJson.insertIfMissing("vJoyButtonBinds", {
   $GCCButton.A: 1,
@@ -126,53 +125,51 @@ controller.useShortHopMacro = configJson["useShortHopMacro"].getBool
 controller.useShieldTilt = configJson["useShieldTilt"].getBool
 controller.useWavelandHelper = configJson["useWavelandHelper"].getBool
 
-proc main() {.async.} =
-  while true:
-    onOffToggle = keyIsPressed(onOffToggleKey)
-    if onOffToggle and not onOffTogglePrevious:
-      isEnabled = not isEnabled
-      setAllKeysBlocked(isEnabled)
-
-    if isEnabled:
-      for action, keyBindList in keyBinds.pairs:
-        var bindState = false
-        for keyBind in keyBindList:
-          bindState = bindState or keyIsPressed(keyBind)
-        controller.setActionState(action, bindState)
-
-      controller.update()
-
-      if useVJoy:
-        for button, bindId in vJoyButtonBinds.pairs:
-          vJoyDevice.setButton(bindId, controller.state[button].isPressed)
-
-        for axis, bindId in vJoyAxisBinds.pairs:
-          vJoyDevice.setAxis(bindId, controller.state[axis].value)
-
-        for slider, bindId in vJoySliderBinds.pairs:
-          vJoyDevice.setAxis(bindId, controller.state[slider].value)
-
-        vJoyDevice.sendInputs()
-
-      else:
-        for button in GCCButton:
-          dolphinCtrl.setButton(button, controller.state[button].isPressed)
-
-        for axis in GCCAxis:
-          dolphinCtrl.setAxis(axis, controller.state[axis].value)
-
-        for slider in GCCSlider:
-          dolphinCtrl.setSlider(slider, controller.state[slider].value)
-
-        dolphinCtrl.writeControllerState()
-
-    onOffTogglePrevious = onOffToggle
-
-    await sleepAsync(1)
-
+initKeyboardHook()
 setAllKeysBlocked(true)
 
-asyncCheck runHook()
-waitFor main()
+while true:
+  pollKeyboard()
 
-shutDownVJoy()
+  onOffToggle = keyIsPressed(onOffToggleKey)
+  if onOffToggle and not onOffTogglePrevious:
+    isEnabled = not isEnabled
+    setAllKeysBlocked(isEnabled)
+
+  if isEnabled:
+    for action, keyBindList in keyBinds.pairs:
+      var bindState = false
+      for keyBind in keyBindList:
+        bindState = bindState or keyIsPressed(keyBind)
+      controller.setActionState(action, bindState)
+
+    controller.update()
+
+    if useVJoy:
+      for button, bindId in vJoyButtonBinds.pairs:
+        vJoyDevice.setButton(bindId, controller.state[button].isPressed)
+
+      for axis, bindId in vJoyAxisBinds.pairs:
+        vJoyDevice.setAxis(bindId, controller.state[axis].value)
+
+      for slider, bindId in vJoySliderBinds.pairs:
+        vJoyDevice.setAxis(bindId, controller.state[slider].value)
+
+      vJoyDevice.sendInputs()
+
+    else:
+      for button in GCCButton:
+        dolphinCtrl.setButton(button, controller.state[button].isPressed)
+
+      for axis in GCCAxis:
+        dolphinCtrl.setAxis(axis, controller.state[axis].value)
+
+      for slider in GCCSlider:
+        dolphinCtrl.setSlider(slider, controller.state[slider].value)
+
+      dolphinCtrl.writeControllerState()
+
+  onOffTogglePrevious = onOffToggle
+
+if useVJoy:
+  shutDownVJoy()

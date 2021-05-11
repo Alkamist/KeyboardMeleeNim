@@ -1,7 +1,6 @@
 import
   std/tables,
   std/sequtils,
-  std/asyncdispatch,
   std/macros
 
 macro winapi(x: untyped): untyped =
@@ -405,17 +404,15 @@ proc windowsHook(code: int32, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall
   else:
     result = CallNextHookEx(0, code, wParam, lParam)
 
-proc runHook*() {.async.} =
+proc initKeyboardHook*() =
   SetWindowsHookEx(WH_KEYBOARD_LL, windowsHook, 0, 0)
 
-  while true:
-    var msg: LPMSG
+proc pollKeyboard*() =
+  var msg: LPMSG
 
-    while PeekMessage(msg, 0, 0, 0, 0) != 0:
-      TranslateMessage(msg)
-      DispatchMessage(msg)
-
-    await sleepAsync(1)
+  while PeekMessage(msg, 0, 0, 0, 0) != 0:
+    TranslateMessage(msg)
+    DispatchMessage(msg)
 
 proc keyIsPressed*(key: Key): bool =
   keyStates[key]
