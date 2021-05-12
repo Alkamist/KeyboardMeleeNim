@@ -62,6 +62,7 @@ type
     isDoingSoftUp: bool
     isDoingSoftDown: bool
     isShieldTilting: bool
+    isDoingSideTilt: bool
     backdashTime: float
     safeDownBTime: float
     shortHopTime: float
@@ -76,6 +77,7 @@ type
     pushDownTime: float
     smashDITime: float
     shieldTiltTime: float
+    sideTiltTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.state = initGCCState()
@@ -117,10 +119,17 @@ proc handleSoftDirections(controller: var DigitalMeleeController) =
                        controller.actions[Action.Left].justReleased or
                        controller.actions[Action.Right].justReleased
 
-  # Up and down tilt:
+  # Up, down, and side tilt:
 
-  if controller.actions[Action.A].isPressed and hardPress:
+  if controller.actions[Action.A].justPressed and hardPress:
+    controller.isDoingSideTilt = true
+    controller.sideTiltTime = cpuTime()
+
+  if controller.isDoingSideTilt:
     controller.state.xAxis.value = controller.state.xAxis.direction * 0.6
+
+    if cpuTime() - controller.sideTiltTime > 0.034:
+      controller.isDoingSideTilt = false
 
   # Soft left and right:
 

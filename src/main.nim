@@ -171,5 +171,7 @@ while true:
 
   onOffTogglePrevious = onOffToggle
 
+  sleep(1)
+
 if useVJoy:
   shutDownVJoy()
