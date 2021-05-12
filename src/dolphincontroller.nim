@@ -25,6 +25,7 @@ type
 
 proc initDolphinController*(portNumber: int, dolphinDirectory: string): DolphinController =
   result.pipe = initSystemPipe(getDolphinPipePath(portNumber, dolphinDirectory))
+  echo "Connected to Dolphin pipe."
 
 proc setButton*(controller: var DolphinController, button: GCCButton, state: bool) =
   controller.state[button].isPressed = state

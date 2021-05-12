@@ -8,6 +8,12 @@ import
   digitalmeleecontroller,
   dolphincontroller
 
+# Force the console window to stay open on exceptions to give the user error feedback.
+globalRaiseHook = proc (e: ref Exception): bool =
+  echo "Error: " & e.msg
+  while true:
+    sleep(1)
+
 proc parseKeyBindsJson(inputBinds: JsonNode): Table[Action, seq[Key]] =
   for action, bindList in inputBinds.pairs:
     var parsedBindList: seq[Key]
@@ -31,9 +37,10 @@ template insertIfMissing(node: var JsonNode, key: string, value: untyped): untyp
   if not node.hasKey(key):
     node{key} = %* value
 
+let configExistedBeforeLaunch = fileExists("config.json")
 var configJson = parseJson("{}")
 
-if fileExists("config.json"):
+if configExistedBeforeLaunch:
   configJson = parseJson(readFile("config.json"))
 
 configJson.insertIfMissing("useVJoy", false)
@@ -98,6 +105,10 @@ configJson.insertIfMissing("vJoySliderBinds", {
 })
 
 writeFile("config.json", pretty(configJson))
+if configExistedBeforeLaunch:
+  echo "Using existing config.json."
+else:
+  echo "Created config.json."
 
 let
   onOffToggleKey = parseEnum[Key](configJson["onOffToggleKey"].getStr)
@@ -135,6 +146,8 @@ while true:
   if onOffToggle and not onOffTogglePrevious:
     isEnabled = not isEnabled
     setAllKeysBlocked(isEnabled)
+    if isEnabled: echo "Keyboard Melee enabled."
+    else: echo "Keyboard Melee disabled."
 
   if isEnabled:
     for action, keyBindList in keyBinds.pairs:

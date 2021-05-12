@@ -89,8 +89,7 @@ elif defined(windows):
   proc initSystemPipe*(directory: string): SystemPipe =
     result.handle = CreateFile(directory.LPCSTR, GENERIC_WRITE, 0, nil, OPEN_EXISTING, 0, 0)
     if result.handle == INVALID_HANDLE_VALUE:
-      echo "Could not connect to Dolphin pipe."
-      quit(QuitFailure)
+      raise newException(IOError, "Could not connect to Dolphin pipe. Make sure Dolphin is running before launching KeyboardMelee if you are not using VJoy.")
 
   proc `=destroy`(pipe: var SystemPipe) =
     CloseHandle(pipe.handle)

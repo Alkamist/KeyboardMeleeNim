@@ -262,8 +262,8 @@ proc handleShieldTilt(controller: var DigitalMeleeController) =
 
   if airDodge:
     if diagonal:
-      if mod1: stickMod(0.5, 0.85)
-      elif mod2: stickMod(0.6375, 0.375)
+      if mod1: stickMod(0.6375, 0.375)
+      elif mod2: stickMod(0.5, 0.85)
       elif down: stickMod(0.7, 0.6875)
 
   elif shield:

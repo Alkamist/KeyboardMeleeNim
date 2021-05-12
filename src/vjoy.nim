@@ -47,11 +47,6 @@ type
     id*: cuint
     state: JoystickPositionV2
 
-template quitIfNil(message: string, input: untyped): untyped =
-  if input == nil:
-    echo message
-    quit(QuitFailure)
-
 var
   deviceIsAcquired = [false, false, false, false]
   vJoyLib: LibHandle
@@ -66,13 +61,14 @@ proc startVJoy*(dllPath: string) =
   acquireVJD = cast[proc(deviceId: cuint): cint {.gcsafe, stdcall.}](vJoyLib.symAddr("AcquireVJD"))
   relinquishVJD = cast[proc(deviceId: cuint) {.gcsafe, stdcall.}](vJoyLib.symAddr("RelinquishVJD"))
   updateVJD = cast[proc(deviceId: cuint, state: JoystickPositionV2): cint {.gcsafe, stdcall.}](vJoyLib.symAddr("UpdateVJD"))
-  quitIfNil("Error loading 'vJoyEnabled'.", vJoyEnabled)
-  quitIfNil("Error loading 'acquireVJD'.", acquireVJD)
-  quitIfNil("Error loading 'relinquishVJD'.", relinquishVJD)
-  quitIfNil("Error loading 'updateVJD'.", updateVJD)
-  if vJoyEnabled() == 0:
-    echo "vJoy is not enabled."
-    quit(QuitFailure)
+
+  if vJoyEnabled == nil: raise newException(IOError, "Error loading 'vJoyEnabled'.")
+  if acquireVJD == nil: raise newException(IOError, "Error loading 'acquireVJD'.")
+  if relinquishVJD == nil: raise newException(IOError, "Error loading 'relinquishVJD'.")
+  if updateVJD == nil: raise newException(IOError, "Error loading 'updateVJD'.")
+  if vJoyEnabled() == 0: raise newException(IOError, "vJoy is not enabled.")
+
+  echo "VJoy initialized properly."
 
 proc shutDownVJoy*() =
   for i in 0..3:
@@ -83,11 +79,12 @@ proc shutDownVJoy*() =
 
 proc initVJoyDevice*(deviceId: cuint): VJoyDevice =
   if acquireVJD(deviceId) == 0:
-    echo "Failed to acquire vJoy device."
-    quit(QuitFailure)
+    raise newException(IOError, "Failed to acquire vJoy device.")
 
   deviceIsAcquired[deviceId - 1] = true
   result.id = deviceId
+
+  echo "Connected to VJoy device " & $deviceId & "."
 
 proc scaledAxisValue(value: float): clong =
   let scaledValue = 0.5 * (0.626 * value + 1.0)
@@ -116,5 +113,4 @@ proc setAxis*(device: var VJoyDevice, axis: VJoyAxis, value: float) =
 
 proc sendInputs*(device: var VJoyDevice) =
   if updateVJD(device.id, device.state) == 0:
-    echo "Failed to update vJoy device."
-    quit(QuitFailure)
+    raise newException(IOError, "Failed to update vJoy device.")
