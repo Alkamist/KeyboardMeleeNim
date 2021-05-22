@@ -427,10 +427,11 @@ proc handleSpamLCancel(controller: var DigitalMeleeController) =
      controller.actions[Action.CRight].justPressed:
     controller.lCancelTime = cpuTime()
 
-  if controller.actions[Action.CDown].isPressed or
-     controller.actions[Action.CUp].isPressed or
-     controller.actions[Action.CLeft].isPressed or
-     controller.actions[Action.CRight].isPressed:
+  if (not controller.actions[Action.ChargeSmash].isPressed) and
+     (controller.actions[Action.CDown].isPressed or
+      controller.actions[Action.CUp].isPressed or
+      controller.actions[Action.CLeft].isPressed or
+      controller.actions[Action.CRight].isPressed):
     let timer = cpuTime() - controller.lCancelTime
 
     if timer <= 0.017:
@@ -444,10 +445,11 @@ proc handleSpamLCancel(controller: var DigitalMeleeController) =
     controller.state.lSlider.value = 0.0
 
 proc handleSingleLCancel(controller: var DigitalMeleeController) =
-  if controller.actions[Action.CDown].justPressed or
-     controller.actions[Action.CUp].justPressed or
-     controller.actions[Action.CLeft].justPressed or
-     controller.actions[Action.CRight].justPressed:
+  if (not controller.actions[Action.ChargeSmash].isPressed) and
+     (controller.actions[Action.CDown].justPressed or
+      controller.actions[Action.CUp].justPressed or
+      controller.actions[Action.CLeft].justPressed or
+      controller.actions[Action.CRight].justPressed):
     controller.lCancelTime = cpuTime()
     controller.isDoingLCancel = true
 
@@ -518,20 +520,20 @@ proc handleChargedSmashes(controller: var DigitalMeleeController) =
   if controller.chargeSmash:
     controller.state.aButton.isPressed = true
 
-  let cJustPressed = controller.actions[Action.CLeft].justPressed or
-                     controller.actions[Action.CRight].justPressed or
-                     controller.actions[Action.CDown].justPressed or
-                     controller.actions[Action.CUp].justPressed
+  # let cJustPressed = controller.actions[Action.CLeft].justPressed or
+  #                    controller.actions[Action.CRight].justPressed or
+  #                    controller.actions[Action.CDown].justPressed or
+  #                    controller.actions[Action.CUp].justPressed
 
-  if controller.actions[Action.ChargeSmash].isPressed and cJustPressed:
-    controller.justStartedSmash = true
-    controller.chargeSmashTime = cpuTime()
+  # if controller.actions[Action.ChargeSmash].isPressed and cJustPressed:
+  #   controller.justStartedSmash = true
+  #   controller.chargeSmashTime = cpuTime()
 
-  if controller.justStartedSmash:
-    controller.state.aButton.isPressed = false
+  # if controller.justStartedSmash:
+  #   controller.state.aButton.isPressed = false
 
-    if cpuTime() - controller.chargeSmashTime > 0.017:
-      controller.justStartedSmash = false
+  #   if cpuTime() - controller.chargeSmashTime > 0.017:
+  #     controller.justStartedSmash = false
 
 proc handleWankDI(controller: var DigitalMeleeController) =
   let frame = 0.01666666667
