@@ -45,6 +45,7 @@ type
     actions*: array[Action, Button]
     state*: GCCState
     chargeSmash: bool
+    justStartedSmash: bool
     isLightShielding: bool
     isDoingSafeDownB: bool
     delayBackdash: bool
@@ -63,6 +64,8 @@ type
     isDoingSoftDown: bool
     isShieldTilting: bool
     isDoingSideTilt: bool
+    isDoingJumpCancelGrab: bool
+    isDoingLCancel: bool
     backdashTime: float
     safeDownBTime: float
     shortHopTime: float
@@ -78,6 +81,9 @@ type
     smashDITime: float
     shieldTiltTime: float
     sideTiltTime: float
+    jumpCancelGrabTime: float
+    lCancelTime: float
+    chargeSmashTime: float
 
 proc initDigitalMeleeController*(): DigitalMeleeController =
   result.state = initGCCState()
@@ -89,6 +95,10 @@ proc initDigitalMeleeController*(): DigitalMeleeController =
   result.aAttackTime = cpuTime()
   result.smashDITime = cpuTime()
   result.shieldTiltTime = cpuTime()
+  result.sideTiltTime = cpuTime()
+  result.jumpCancelGrabTime = cpuTime()
+  result.lCancelTime = cpuTime()
+  result.chargeSmashTime = cpuTime()
 
 proc updateActions(controller: var DigitalMeleeController) =
   for action in controller.actions.mitems:
@@ -345,6 +355,34 @@ proc handleAngledSmashes(controller: var DigitalMeleeController) =
   if cAngled and not tilt:
     controller.state.cYAxis.value = controller.state.yAxis.direction * 0.4
 
+proc handleJumpCancelGrab(controller: var DigitalMeleeController) =
+  if not (controller.actions[Action.SoftLeft].isPressed or
+          controller.actions[Action.SoftRight].isPressed):
+    if controller.actions[Action.Z].justPressed:
+      controller.jumpCancelGrabTime = cpuTime()
+      controller.isDoingJumpCancelGrab = true
+
+    if controller.isDoingJumpCancelGrab:
+      controller.state.yButton.isPressed = true
+
+      let timer = cpuTime() - controller.jumpCancelGrabTime
+
+      if timer <= 0.017:
+        controller.state.zButton.isPressed = false
+
+      elif timer > 0.017 and timer <= 0.034:
+        controller.state.zButton.isPressed = true
+
+      elif timer > 0.034:
+        controller.isDoingJumpCancelGrab = false
+
+    else:
+      controller.state.yButton.isPressed = false
+      controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
+
+  else:
+    controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
+
 proc handleJumpLogic(controller: var DigitalMeleeController) =
   if controller.useShortHopMacro:
     # Short hop handling.
@@ -382,6 +420,46 @@ proc handleJumpLogic(controller: var DigitalMeleeController) =
     controller.state.xButton.isPressed = controller.actions[Action.FullHop].isPressed
     controller.state.yButton.isPressed = controller.actions[Action.ShortHop].isPressed
 
+proc handleSpamLCancel(controller: var DigitalMeleeController) =
+  if controller.actions[Action.CDown].justPressed or
+     controller.actions[Action.CUp].justPressed or
+     controller.actions[Action.CLeft].justPressed or
+     controller.actions[Action.CRight].justPressed:
+    controller.lCancelTime = cpuTime()
+
+  if controller.actions[Action.CDown].isPressed or
+     controller.actions[Action.CUp].isPressed or
+     controller.actions[Action.CLeft].isPressed or
+     controller.actions[Action.CRight].isPressed:
+    let timer = cpuTime() - controller.lCancelTime
+
+    if timer <= 0.017:
+      controller.state.lSlider.value = 1.0
+    elif timer > 0.017 and timer <= 0.034:
+      controller.state.lSlider.value = 0.0
+    elif timer > 0.034:
+      controller.lCancelTime = cpuTime()
+
+  else:
+    controller.state.lSlider.value = 0.0
+
+proc handleSingleLCancel(controller: var DigitalMeleeController) =
+  if controller.actions[Action.CDown].justPressed or
+     controller.actions[Action.CUp].justPressed or
+     controller.actions[Action.CLeft].justPressed or
+     controller.actions[Action.CRight].justPressed:
+    controller.lCancelTime = cpuTime()
+    controller.isDoingLCancel = true
+
+  if controller.isDoingLCancel:
+    controller.state.lSlider.value = 1.0
+
+    if cpuTime() - controller.lCancelTime > 0.017:
+      controller.isDoingLCancel = false
+
+  else:
+    controller.state.lSlider.value = 0.0
+
 proc handleShield(controller: var DigitalMeleeController) =
   # Allow for a special button to toggle light shield while the shield button is held.
   if controller.actions[Action.ToggleLightShield].justPressed and
@@ -397,7 +475,11 @@ proc handleShield(controller: var DigitalMeleeController) =
 
   else:
     controller.state.rButton.isPressed = controller.actions[Action.Shield].isPressed
-    controller.state.lSlider.value = 0.0
+
+    #if controller.actions[Action.Shield].isPressed:
+    #  controller.state.lSlider.value = 1.0
+    #else:
+    #  controller.state.lSlider.value = 0.0
 
 proc handleB(controller: var DigitalMeleeController) =
   controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
@@ -436,6 +518,21 @@ proc handleChargedSmashes(controller: var DigitalMeleeController) =
   if controller.chargeSmash:
     controller.state.aButton.isPressed = true
 
+  let cJustPressed = controller.actions[Action.CLeft].justPressed or
+                     controller.actions[Action.CRight].justPressed or
+                     controller.actions[Action.CDown].justPressed or
+                     controller.actions[Action.CUp].justPressed
+
+  if controller.actions[Action.ChargeSmash].isPressed and cJustPressed:
+    controller.justStartedSmash = true
+    controller.chargeSmashTime = cpuTime()
+
+  if controller.justStartedSmash:
+    controller.state.aButton.isPressed = false
+
+    if cpuTime() - controller.chargeSmashTime > 0.017:
+      controller.justStartedSmash = false
+
 proc handleWankDI(controller: var DigitalMeleeController) =
   let frame = 0.01666666667
 
@@ -448,13 +545,6 @@ proc handleWankDI(controller: var DigitalMeleeController) =
       timer = cpuTime() - controller.smashDITime
       horizontal = controller.state.xAxis.isActive and not controller.state.yAxis.isActive
       vertical = controller.state.yAxis.isActive and not controller.state.xAxis.isActive
-
-    template asdf(axis: untyped): untyped =
-      if timer <= frame:
-        axis = -0.3125
-
-      elif timer >= frame and timer <= 2.0 * frame:
-        axis = 0.3125
 
     if horizontal:
       if timer <= frame:
@@ -490,7 +580,10 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleSafeDownB()
   controller.handleWavelandHelper()
   controller.handleAngledSmashes()
+  #controller.handleJumpCancelGrab()
   controller.handleJumpLogic()
+  controller.handleSingleLCancel()
+  #controller.handleSpamLCancel()
   controller.handleShield()
   controller.handleB()
   controller.handleChargedSmashes()
