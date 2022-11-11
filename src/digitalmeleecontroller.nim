@@ -334,8 +334,10 @@ proc handleWavelandHelper(controller: var DigitalMeleeController) =
             controller.state.xAxis.value = controller.state.xAxis.direction * 0.5
             controller.state.yAxis.value = -0.85
           else:
-            controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
-            controller.state.yAxis.value = -0.375
+            # controller.state.xAxis.value = controller.state.xAxis.direction * 0.6375
+            # controller.state.yAxis.value = -0.375
+            controller.state.xAxis.value = controller.state.xAxis.direction * 0.7375
+            controller.state.yAxis.value = -0.3125
 
         elif not isDown:
           controller.state.yAxis.value = -0.3
@@ -478,10 +480,10 @@ proc handleShield(controller: var DigitalMeleeController) =
   else:
     controller.state.rButton.isPressed = controller.actions[Action.Shield].isPressed
 
-    #if controller.actions[Action.Shield].isPressed:
-    #  controller.state.lSlider.value = 1.0
-    #else:
-    #  controller.state.lSlider.value = 0.0
+    if controller.actions[Action.Shield].isPressed:
+      controller.state.lSlider.value = 1.0
+    else:
+      controller.state.lSlider.value = 0.0
 
 proc handleB(controller: var DigitalMeleeController) =
   controller.state.bButton.isPressed = controller.actions[Action.B].isPressed
@@ -582,13 +584,13 @@ proc update*(controller: var DigitalMeleeController) =
   controller.handleSafeDownB()
   controller.handleWavelandHelper()
   controller.handleAngledSmashes()
-  #controller.handleJumpCancelGrab()
+  # controller.handleJumpCancelGrab()
   controller.handleJumpLogic()
-  controller.handleSingleLCancel()
-  #controller.handleSpamLCancel()
+  # controller.handleSingleLCancel()
+  # controller.handleSpamLCancel()
   controller.handleShield()
   controller.handleB()
-  controller.handleChargedSmashes()
+  # controller.handleChargedSmashes()
   controller.handleWankDI()
 
   controller.state.zButton.isPressed = controller.actions[Action.Z].isPressed
